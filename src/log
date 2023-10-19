@@ -1,0 +1,16 @@
+g++ -O2 -DNDEBUG  `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`  -c -o BiqMain.o `test -f 'BiqMain.cpp' || echo '/home/james/Alps/examples/Biq/'`BiqMain.cpp
+g++ -O2 -DNDEBUG  `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`  -c -o BiqModel.o `test -f 'BiqModel.cpp' || echo '/home/james/Alps/examples/Biq/'`BiqModel.cpp
+g++ -O2 -DNDEBUG  `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`  -c -o BiqNodeDesc.o `test -f 'BiqNodeDesc.cpp' || echo '/home/james/Alps/examples/Biq/'`BiqNodeDesc.cpp
+g++ -O2 -DNDEBUG  `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`  -c -o BiqParams.o `test -f 'BiqParams.cpp' || echo '/home/james/Alps/examples/Biq/'`BiqParams.cpp
+g++ -O2 -DNDEBUG  `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`  -c -o BiqSolution.o `test -f 'BiqSolution.cpp' || echo '/home/james/Alps/examples/Biq/'`BiqSolution.cpp
+g++ -O2 -DNDEBUG  `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`  -c -o BiqTreeNode.o `test -f 'BiqTreeNode.cpp' || echo '/home/james/Alps/examples/Biq/'`BiqTreeNode.cpp
+g++ -O2 -DNDEBUG  `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`  -c -o BiqUtil.o `test -f 'BiqUtil.cpp' || echo '/home/james/Alps/examples/Biq/'`BiqUtil.cpp
+Building lbfgsb.o from lbfgsb.f
+gfortran -O -Wall -ffixed-line-length-none -c lbfgsb.f -o lbfgsb.o
+Building linpack.o from linpack.f
+gfortran -O -Wall -ffixed-line-length-none -c linpack.f -o linpack.o
+Building blas.o from blas.f
+gfortran -O -Wall -ffixed-line-length-none -c blas.f -o blas.o
+Building timer.o from timer.f
+gfortran -O -Wall -ffixed-line-length-none -c timer.f -o timer.o
+g++ -Wl,--rpath -Wl,/home/james/dist/lib -O2 -DNDEBUG  -o Biq $bla -lgfortran `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --libs alps --static` -lopenblas  -lgfortran -lopenblas  -lgfortran BiqMain.o BiqModel.o BiqNodeDesc.o BiqParams.o BiqSolution.o BiqTreeNode.o BiqUtil.o  lbfgsb.o linpack.o blas.o timer.o     
