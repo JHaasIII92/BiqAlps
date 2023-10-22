@@ -33,6 +33,7 @@ private:
 
     /* sub model data*/
     double *X_;
+    std::vector<int> vOffset_;
 
     /* data */
     double *Q_sub_;                           // Dense Objective matrix   Q_[i + j*nVar_] to get the i,j
@@ -49,7 +50,7 @@ private:
 
     Sparse sTmp_sub_;
     double* pdTmp_sub_;
-    double *pdTmpLinear;
+    double *pdTmpLinear_;
 
     int nIneq_;                            // possibly do not need since this is the size of a std::vector
 
@@ -120,27 +121,24 @@ private:
     
     double GetFixedValue();
     
-    
-
     bool Prune();
     
     void BuildConstraints(int nRows,
                           double *pdRHSsource, std::vector<Sparse> sMatSource,
                           double *pdRHSdest,   std::vector<Sparse> sMatdest,
-                          int *piSol, BiqVarStatus *pbiqVarStatus, int nFixed);
+                          int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    double GetSubMatrixSparse(Sparse sSourceMat, BiqVarStatus *pbiqVarStatus, int & nnzAdded);
+    double GetSubMatrixSparse(Sparse sSourceMat, std::vector<BiqVarStatus> vbiqVarStatus, int & nnzAdded, int nFixed);
 
-    void buildObjective(int *piSol, BiqVarStatus *pbiqVarStatus, int nFixed);
+    void BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    void GetSubMatrix(BiqVarStatus *pbiqVarStatus);
+    void GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    double GetConstant(Sparse &sMat, int *piSol, BiqVarStatus *pbiqVarStatus); 
+    double GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus); 
 
-    void GetLinear(Sparse &sSource, int *piSol, BiqVarStatus *pbiqVarStatus);
+    void GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    int GetOffset(int *piOffset, BiqVarStatus *pbiqVarStatus);
-
+    int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
 };
 
 #endif

@@ -59,6 +59,7 @@ BiqModel::BiqModel(
     a_sub_ = new double[mA_];
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
+    vOffset_.resize(nVar_, 0);
     FillSparseMatrix(Qs_,Q_,N_);
     // Copy the b vector in to the first Bs_.size() entries
     std::copy(b, b + Bs_.size(), b_);
@@ -86,7 +87,7 @@ BiqModel::BiqModel(
     // set some memory for the sTemp_sub_ matrix
     sTmp_sub_.resize(N_*N_);
     pdTmp_sub_ = new double[N_*N_];
-    pdTmpLinear = new double[nVar_];
+    pdTmpLinear_ = new double[nVar_];
     delete[] IWORK_SIZE;
     delete[] DWORK_SIZE;
 
@@ -112,8 +113,8 @@ BiqModel::~BiqModel()
     delete[] a_;
     delete[] b_;
     delete[] b_sub_;
-    //delete[] a_sub_;
-    delete[] pdTmpLinear;
+    delete[] a_sub_;
+    delete[] pdTmpLinear_;
     delete[] pdTmp_sub_;
 }
 
@@ -652,6 +653,7 @@ void BiqModel::B(int mode, double alpha)
 
 }
 
+
 /// @brief 
 /// @return 
 bool BiqModel::Prune()
@@ -661,78 +663,81 @@ bool BiqModel::Prune()
     return false;
 }
 
+
 /// @brief 
 void BiqModel::CreateSubProblem()
 {
     // temp data for building
-    BiqVarStatus* pbiqVarStatus = new BiqVarStatus[nVar_];
+    std::vector<BiqVarStatus> vbiqVarStatus;
+    vbiqVarStatus.resize(nVar_, BiqVarFree);
     int *piSol = new int[nVar_];
 
-    std::fill_n(pbiqVarStatus, nVar_, BiqVarFree);
     std::fill_n(piSol, nVar_, 0);
 
-/*
-    pbiqVarStatus[0] = BiqVarFixedToZero;
+    vbiqVarStatus.at(0) = BiqVarFixedToZero;
     piSol[0] = 0;
-    pbiqVarStatus[1] = BiqVarFixedToOne;
+    vbiqVarStatus.at(1) = BiqVarFixedToOne;
     piSol[1] = 1;
-*/
-    int nFixed = 0;
+
+    int nFixed = GetOffset(vbiqVarStatus);
 
     BuildConstraints(mB_, b_, Bs_, b_sub_, Bs_sub_,
-                        piSol, pbiqVarStatus, nFixed); 
+                        piSol, vbiqVarStatus, nFixed); 
 
-    buildObjective(piSol, pbiqVarStatus, nFixed);
+    BuildObjective(piSol, vbiqVarStatus, nFixed);
 }
 
 
-void BiqModel::buildObjective(int *piSol, BiqVarStatus *pbiqVarStatus, int nFixed)
+void BiqModel::BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
-    int i;
+    int i, j;
     int nSubVar = nVar_ - nFixed;
-    double dConst;
+    double dConstant;
     //
-    GetSubMatrix(pbiqVarStatus);
-    
+    GetSubMatrix(vbiqVarStatus, nFixed);
+    dConstant = GetConstant(Qs_, piSol, vbiqVarStatus);
     //
-    GetLinear(Qs_, piSol, pbiqVarStatus);
+    GetLinear(Qs_, piSol, vbiqVarStatus, nFixed);
     
-
-    // add the constant
-    print_symmetric_matrix(pdTmp_sub_, nSubVar);
-    print_vector(pdTmpLinear, nSubVar);
-}
-
-void BiqModel::GetSubMatrix(BiqVarStatus *pbiqVarStatus)
-{
-
-    int nFixed;
-    int nFree;
-    int i, ii, jj;
-    int piOffset[nVar_];
-    // figure out off set
-    nFixed = GetOffset(piOffset, pbiqVarStatus);
-
-    nFree = nVar_ - nFixed;
-
-    // init the submatrix zero out Q_sub_
-    for(i = 0; i < nFree*nFree; ++i)
+    // add piSol to pdTmp_sub_ diag
+    // [i, j] = [i + j *N] -> [i,i] = [i*(1+N)]
+    for(i = 0; i < nSubVar; ++i)
     {
-        pdTmp_sub_[i] = 0.0;
+        pdTmp_sub_[i*(1+nSubVar)] = pdTmpLinear_[i];
     }
 
-    for(auto & it: Qs_)
+    // Set constant
+    //Q_sub_[nSubVar + nSubVar*(nSubVar + 1)] = Q_[nVar_ + nVar_*(nVar_ + 1)]; // original 
+    Q_sub_[nSubVar + nSubVar*(nSubVar + 1)] = dConstant; //  use GetConstant since the sol is shifted to {-1, 1}?
+    
+    // build Q_sub_
+    for(i = 0; i < nSubVar; ++i)
     {
-        if(pbiqVarStatus[it.i_] == BiqVarFree && pbiqVarStatus[it.j_] == BiqVarFree)
+        for(j = 0; j < nSubVar; ++j)
         {
-            ii = it.i_ - piOffset[it.i_];
-            jj = it.j_ - piOffset[it.j_];
-            pdTmp_sub_[ii + jj * nFree] = it.dVal_;
-            pdTmp_sub_[jj + ii * nFree] = it.dVal_;
+            if(i != j)
+            {
+                Q_sub_[i + j * (nSubVar + 1)] = pdTmp_sub_[i + j * nSubVar]; 
+            }
+            else
+            {
+                Q_sub_[i + j * (nSubVar + 1)] = 0.0;
+            }
         }
     }
-}
 
+    // lay down the linear terms
+    for(i = 0; i < nSubVar; ++i)
+    {
+        Q_sub_[i + nSubVar*(nSubVar + 1)] = pdTmp_sub_[i + i*nSubVar];
+        Q_sub_[nSubVar + i*(nSubVar + 1)] = pdTmp_sub_[i + i*nSubVar];
+    }
+
+    // add the constant
+    print_symmetric_matrix(Q_sub_, nSubVar+1);
+    //std::printf("\n\n");
+    //print_vector(pdTmpLinear_, nVar_);
+}
 
 /// @brief 
 /// @param RHSsource 
@@ -742,7 +747,7 @@ void BiqModel::GetSubMatrix(BiqVarStatus *pbiqVarStatus)
 void BiqModel::BuildConstraints(int nRows,
                                 double *RHSsource, std::vector<Sparse> sMatArraySource,
                                 double *RHSdest,   std::vector<Sparse> sMatArraydest,
-                                int *piSol, BiqVarStatus *pbiqVarStatus, int nFixed)
+                                int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int nnzAdded;
     int i;
@@ -750,18 +755,18 @@ void BiqModel::BuildConstraints(int nRows,
     double dScaleFactor;
     double dConstant;
     int nVarSub = nVar_ - nFixed;
+
     Sparse::iterator itSource;
     
     for(int k = 0; k < nRows; ++k)
     {
-        dCoefMatNorm = GetSubMatrixSparse(sMatArraySource.at(k), pbiqVarStatus, nnzAdded);
-        dConstant = GetConstant(sMatArraySource.at(k), piSol, pbiqVarStatus);
-        GetLinear(sMatArraySource.at(k), piSol, pbiqVarStatus);
+        dCoefMatNorm = GetSubMatrixSparse(sMatArraySource.at(k), vbiqVarStatus, nnzAdded, nFixed);
+        dConstant = GetConstant(sMatArraySource.at(k), piSol, vbiqVarStatus);
+        GetLinear(sMatArraySource.at(k), piSol, vbiqVarStatus, nFixed);
 
         //
         dScaleFactor = 1.0;
-        std::printf("About to print the size\n");
-        std::printf("Size of dest matrix : %d\n", sMatArraydest.at(k).size());
+
         // set itterator for fill
         sMatArraydest.at(k).resize(100);
         itSource = (sMatArraydest.at(k)).begin();
@@ -774,20 +779,19 @@ void BiqModel::BuildConstraints(int nRows,
                 itSource->j_    = sTmp_sub_.at(i).j_;
                 itSource->dVal_ = sTmp_sub_.at(i).dVal_ * dScaleFactor;
                 ++itSource;
-                std::printf("adding quad part %d\n",i);
+
             }
         } 
 
         // Linear Part
         for(int j = 0; j < nVarSub; ++j)
         {
-            if(fabs(pdTmpLinear[j]) > 0.0)
+            if(fabs(pdTmpLinear_[j]) > 0.0)
             {
                 itSource->i_    = nVarSub;
                 itSource->j_    = j;
-                itSource->dVal_ = pdTmpLinear[j] * dScaleFactor;
+                itSource->dVal_ = pdTmpLinear_[j] * dScaleFactor;
                 ++itSource;
-                std::printf("adding quad part %d\n",j);
             }
         }
 
@@ -798,45 +802,67 @@ void BiqModel::BuildConstraints(int nRows,
             itSource->j_    = nVarSub;
             itSource->dVal_ = dConstant * dScaleFactor;
             ++itSource;
-            std::printf("adding quad part %d\n",i);
         }
 
         RHSdest[k] *= dScaleFactor;
-        PrintSparseMatrix(sMatArraySource.at(k));
-        std::printf("BiqModel::BuildConstraints  New Matrix %d\n", k);
-        PrintSparseMatrix(sMatArraydest.at(k));
     }
 }
 
+/// @brief 
+/// @param vbiqVarStatus 
+/// @param nFixed 
+void BiqModel::GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
+{
+    int nFree;
+    int i, ii, jj;
+    int piOffset[nVar_];
+
+    nFree = nVar_ - nFixed;
+
+    // init the submatrix zero out Q_sub_
+    for(i = 0; i < nFree*nFree; ++i)
+    {
+        pdTmp_sub_[i] = 0.0;
+    }
+
+    for(auto & it: Qs_)
+    {
+        
+        if(vbiqVarStatus[it.i_] == BiqVarFree && vbiqVarStatus[it.j_] == BiqVarFree && it.i_ < nVar_ && it.j_ <nVar_)
+        {
+            ii = it.i_ - vOffset_.at(it.i_);
+            jj = it.j_ - vOffset_.at(it.j_);
+            pdTmp_sub_[ii + jj * nFree] = it.dVal_;
+            pdTmp_sub_[jj + ii * nFree] = it.dVal_;
+        }
+    }
+}
 
 /// @brief 
 /// @param sSourceMat As_ or Bs_
-/// @param pbiqVarStatus this is until the BiqNodeDesc
+/// @param vbiqVarStatus this is until the BiqNodeDesc
 ///         being able to pass the real one
 /// @return 
 double BiqModel::GetSubMatrixSparse(Sparse sSourceMat, 
-                                    BiqVarStatus *pbiqVarStatus, 
-                                    int &nnzAdded)
+                                    std::vector<BiqVarStatus> vbiqVarStatus, 
+                                    int &nnzAdded, int nFixed)
 {
     double dRetNorm = 0.0;
     double dVal;
-    int nFixed = 0;
-    int iArrOffset[nVar_];
     int ii, jj, pos = 0;
     bool bBothFree;
-    // figure out the offset
-    nFixed = GetOffset(iArrOffset, pbiqVarStatus);
+    
     // zero out nnzAdded to be safe
     nnzAdded = 0;
     // fill in sTmp_sub_
     Sparse::iterator itDest =  sTmp_sub_.begin(); // TODO how to not be a pointer 
     for(auto& itSource : sSourceMat)
     {
-        bBothFree =  pbiqVarStatus[itSource.i_] == BiqVarFree && pbiqVarStatus[itSource.j_] == BiqVarFree;
+        bBothFree =  vbiqVarStatus[itSource.i_] == BiqVarFree && vbiqVarStatus[itSource.j_] == BiqVarFree;
         if(bBothFree && itSource.i_ < nVar_ && itSource.j_ < nVar_)
         {
-            ii = itSource.i_ - iArrOffset[itSource.i_];
-            jj = itSource.j_ - iArrOffset[itSource.j_];
+            ii = itSource.i_ - vOffset_.at(itSource.i_);
+            jj = itSource.j_ - vOffset_.at(itSource.j_);
             dVal = itSource.dVal_;
             if(jj <= ii)
             {
@@ -849,19 +875,16 @@ double BiqModel::GetSubMatrixSparse(Sparse sSourceMat,
                 itDest->j_ = ii;
             } 
             itDest->dVal_ = dVal;
-            std::printf(" %f * %f + ", dVal, dVal);
             dRetNorm += dVal*dVal;
             if(ii != jj)
             {
-                std::printf(" %f * %f + ", dVal, dVal);
                 dRetNorm += dVal*dVal;
             }
             // incress the itDest
             ++itDest;
             ++nnzAdded;
         }
-    }
-    std::printf("\n");    
+    } 
     dRetNorm = sqrt(dRetNorm);
 
     return dRetNorm;
@@ -872,7 +895,7 @@ double BiqModel::GetSubMatrixSparse(Sparse sSourceMat,
 /// @param piSol 
 /// @param piFixed 
 /// @return 
-double BiqModel::GetConstant(Sparse &sMat, int *piSol, BiqVarStatus *pbiqVarStatus)
+double BiqModel::GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus)
 {
     double dRetConst = 0.0;
     double dTmp;
@@ -883,9 +906,8 @@ double BiqModel::GetConstant(Sparse &sMat, int *piSol, BiqVarStatus *pbiqVarStat
         // if in the quad part
         if(it.i_ < nVar_ && it.j_ < nVar_)
         {
-            if(pbiqVarStatus[it.i_] != BiqVarFree && pbiqVarStatus[it.j_] != BiqVarFree)
+            if(vbiqVarStatus[it.i_] != BiqVarFree && vbiqVarStatus[it.j_] != BiqVarFree)
             {
-                std::printf("BiqModel::GetConstant fixed in Quad %d, %d\n",it.i_,  it.j_);
                 dTmp = (2*piSol[it.i_] - 1.0)*(2*piSol[it.j_] - 1.0)*it.dVal_;
                 dRetConst += dTmp;
                 if(it.i_ != it.j_)
@@ -897,24 +919,21 @@ double BiqModel::GetConstant(Sparse &sMat, int *piSol, BiqVarStatus *pbiqVarStat
         // else if the corner const val
         else if(it.i_ == nVar_ && it.j_ == nVar_)
         {
-            std::printf("BiqModel::GetConstant fixed in Const %d, %d\n",it.i_,  it.j_);
             dRetConst += it.dVal_;
         }
         // else if in the linear column
         else if(it.j_ == nVar_)
         {
-            if(pbiqVarStatus[it.i_] != BiqVarFree)
+            if(vbiqVarStatus[it.i_] != BiqVarFree)
             {
-                std::printf("BiqModel::GetConstant fixed in linear column %d, %d\n",it.i_,  it.j_);
                 dRetConst += (2*piSol[it.i_] - 1.0)*2*it.dVal_;
             }
         }
         // else if in the linear row
         else if(it.i_ == nVar_)
         {
-            if(pbiqVarStatus[it.j_] != BiqVarFree)
+            if(vbiqVarStatus[it.j_] != BiqVarFree)
             {
-                std::printf("BiqModel::GetConstant fixed in linear row %d, %d\n",it.i_,  it.j_);
                 dRetConst += (2*piSol[it.j_] - 1.0)*2*it.dVal_;
             }
         }
@@ -923,24 +942,17 @@ double BiqModel::GetConstant(Sparse &sMat, int *piSol, BiqVarStatus *pbiqVarStat
     return dRetConst;
 }
 
-void BiqModel::GetLinear(Sparse &sSource, int *piSol, BiqVarStatus *pbiqVarStatus)
+void BiqModel::GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     double dSum = 0.0;
     double dVal = 0.0;
-    int nFixed = 0;
-    int nFree = 0;
-    int iArrOffset[nVar_];
     int ii, jj, pos = 0;
-
+    int nFree = nVar_ - nFixed;
     bool bIfree, bJfree;
-    // figure out the offset
-    nFixed = GetOffset(iArrOffset, pbiqVarStatus);
-
-    nFree = nVar_ - nFixed;
-
+    
     for(int i = 0; i < nFree; ++i)
     {
-        pdTmpLinear[i] = 0.0;
+        pdTmpLinear_[i] = 0.0;
     }
 
     for(auto &itSource : sSource)
@@ -949,27 +961,27 @@ void BiqModel::GetLinear(Sparse &sSource, int *piSol, BiqVarStatus *pbiqVarStatu
         jj = itSource.j_;
         dVal = itSource.dVal_;
 
-        bIfree = pbiqVarStatus[ii] == BiqVarFree;
-        bJfree = pbiqVarStatus[jj] == BiqVarFree;  
+        bIfree = vbiqVarStatus[ii] == BiqVarFree;
+        bJfree = vbiqVarStatus[jj] == BiqVarFree;  
         // if we are already linear 
         if(ii < nVar_ && bIfree && jj == nVar_)
-        {
-            pdTmpLinear[ii - iArrOffset[ii]] += dVal;
+        {   
+            pdTmpLinear_[ii - vOffset_.at(ii)] += dVal;
         }
         else if(jj < nVar_ && bJfree && ii == nVar_)
         {
-            pdTmpLinear[jj - iArrOffset[jj]] += dVal;
+            pdTmpLinear_[jj - vOffset_.at(jj)] += dVal;
         }
         // if in quad part
         else if(ii < nVar_ && jj < nVar_)
         {
             if(bIfree && !bJfree)
             {
-                pdTmpLinear[ii - iArrOffset[ii]] += (2 * piSol[jj] - 1.0)*dVal;
+                pdTmpLinear_[ii - vOffset_.at(ii)] += (2 * piSol[jj] - 1.0)*dVal;
             }
             else if(!bIfree && bJfree)
             {
-                pdTmpLinear[jj - iArrOffset[jj]] += (2 * piSol[ii] - 1.0)*dVal;
+                pdTmpLinear_[jj - vOffset_.at(jj)] += (2 * piSol[ii] - 1.0)*dVal;
             }
         }
 
@@ -977,20 +989,20 @@ void BiqModel::GetLinear(Sparse &sSource, int *piSol, BiqVarStatus *pbiqVarStatu
 
 }
 
-int BiqModel::GetOffset(int *piOffset, BiqVarStatus *pbiqVarStatus)
+int BiqModel::GetOffset(std::vector<BiqVarStatus> vbiqVarStatus)
 {
     int nFixedRet = 0;
     
-    for(int i = 0; i < nVar_; ++i)
+    for(int i = 0; i < vOffset_.size(); ++i)
     {
-        if(pbiqVarStatus[i] != BiqVarFree)
+        if(vbiqVarStatus.at(i) != BiqVarFree)
         {
-            piOffset[i] = 0;
+            vOffset_.at(i) = 0;
             ++nFixedRet;  
         }
         else
         {
-            piOffset[i] = nFixedRet;
+            vOffset_.at(i) = nFixedRet;
         }
     }
 

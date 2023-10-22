@@ -12,7 +12,6 @@ void FillSparseMatrix(Sparse& sMat, const double *pdData, int N)
     int j = 0;
     double dTmp;
 
-    std::printf("BiqUtil FillSparseMatrix\n");
     for (j = 0; j < N; ++j) 
     {
         for (i = j; i < N; ++i)
@@ -22,9 +21,7 @@ void FillSparseMatrix(Sparse& sMat, const double *pdData, int N)
             {
                 sMat.push_back(BiqSparseTriple(i,j,dTmp));
             }
-
         }
-
     }
 }
 
