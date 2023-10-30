@@ -2,7 +2,9 @@
 #define BiqUtil_h_
 
 #include <vector>
-
+#include <list>
+#include <map>
+#include <tuple>
 #define TRANSP 1
 #define NOTRANSP 0
 #define scaleEq 1.0
@@ -48,29 +50,19 @@ public:
 class BiqTriInequality
 {
 public: 
-  int i_;
-  int j_;
-  int k_;
   TriType type_;
   double value_;
   double y_; // more discriptive name would be good
 
-  BiqTriInequality(int i, int j, int k, 
-                  TriType type, 
+  BiqTriInequality(TriType type, 
                   double value, double y)
-    : i_(i),
-      j_(j),
-      k_(k),
-      type_(type),
+    : type_(type),
       value_(value),
       y_(y)
       {
       }
   BiqTriInequality()
-    : i_(0),
-      j_(0),
-      k_(0),
-      type_(ONE),
+    : type_(ONE),
       value_(0),
       y_(0)
       {
@@ -79,8 +71,13 @@ public:
 };
 
 using Sparse = std::vector<BiqSparseTriple>;
+using BiqTriTripple = std::tuple<int,int,int>;
+using TriCuts = std::map<BiqTriTripple, BiqTriInequality>;
 
-using TriCuts = std::vector<BiqTriInequality>;
+
+int I(BiqTriTripple btt) {return std::get<0>(btt);};
+int J(BiqTriTripple btt) {return std::get<1>(btt);};
+int K(BiqTriTripple btt) {return std::get<2>(btt);};
 
 void FillSparseMatrix(Sparse& sMat, const double *pdData, int N);
 

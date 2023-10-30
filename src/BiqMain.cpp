@@ -22,6 +22,7 @@ int main(int argc, char * argv[])
 
     int nVar = 6;
     int nBits = 0;
+    
     double Q[49] = {0.0,  -0.25,  -0.25,   0.0,  -0.25,   0.0,   0.0, 
                    -0.25,  0.0,    0.0,    0.0,  -0.25,  -0.25,  0.0, 
                    -0.25,  0.0,    0.0,   -0.25, -0.25,  -0.25,  0.0, 
@@ -29,25 +30,26 @@ int main(int argc, char * argv[])
                    -0.25, -0.25,  -0.25,   0.0,   0.0,   -0.25,  0.0, 
                     0.0,  -0.25,  -0.25,  -0.25, -0.25,   0.0,   0.25,
                     0.0,   0.0,    0.0,    0.25,  0.0,    0.25,  6.0};
+   
 
     std::vector<Sparse> As;
     double *a = NULL;
-
-    Sparse Bs_1 = { 
-                       /* some quad terms  */
+    std::vector<Sparse> Bs;
+    double *b = NULL;
+   /*
+   Sparse Bs_1 = { 
+                     //some quad terms 
                     BiqSparseTriple(0, 0, 1),
                     BiqSparseTriple(1, 0, 2),
                     BiqSparseTriple(2, 0, 3),
                     BiqSparseTriple(3, 0, 4),  
                     BiqSparseTriple(2, 2, 1), 
-                       /* some linear terms    */
+                     // some linear terms 
                     BiqSparseTriple(nVar, 0, 1) 
                    };
     std::vector<Sparse> Bs = {Bs_1};
-    
     double b[1] = {3.14};
-
-    
+    */    
     //double *pQ = &Q
 
     // we are only constructing a model object for now

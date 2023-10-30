@@ -70,8 +70,6 @@ BiqModel::BiqModel(
 
     nIneq_ = 0;
     f_ = 0.0;
-    Cuts_.resize(MaxNineqAdded);   // TODO use push or resize ondemand 
-    List_.resize(500); // TODO replace with param.cuts
     g_ = new double[nMax];
     y_ = new double[nMax];
     binf_ = new double[nMax];
@@ -84,6 +82,10 @@ BiqModel::BiqModel(
     AddDiagCons();
     AllocSubCons();
 
+    // For adding cuts after the list is full
+    dLeastViolatedIneq_ = -INFINITY;
+    bttLeastViolatedIneq_ = BiqTriTripple(-1,-1,-1);
+
     // set some memory for the sTemp_sub_ matrix
     sTmp_sub_.resize(N_*N_);
     pdTmp_sub_ = new double[N_*N_];
@@ -92,6 +94,8 @@ BiqModel::BiqModel(
     delete[] DWORK_SIZE;
 
     CreateSubProblem();
+    //print_symmetric_matrix(Q_sub_, nVar_sub_+1);
+    SDPbound(); 
 }
 
 BiqModel::~BiqModel()
@@ -118,12 +122,16 @@ BiqModel::~BiqModel()
     delete[] pdTmp_sub_;
 }
 
+/// @brief 
+/// @param encode 
+/// @return 
 AlpsKnowledge * BiqModel::decode(AlpsEncoded & encode) const
 {
     std::cerr << "Not implemented!" << std::endl;
     throw std::exception();
 }
 
+/// @brief 
 void BiqModel::AddDiagCons()
 {
     // resize ?
@@ -151,7 +159,6 @@ void BiqModel::AllocSubCons()
 {
     Bs_sub_.resize(100);
     As_sub_.resize(100);
-
 }
 
 /// @brief 
@@ -161,15 +168,18 @@ double BiqModel::SDPbound()
     int i;
     int iStatus;
     int nbit = 0;
-    double dAlpha = 0.1;
-    double dFixedVal;
+    double dAlpha = 0.01;
     double dTol = 1e-6;
+    double dRetBound = 0.0;
     int len_y = mA_ + mB_ + nIneq_;
 
-    // get fixed value
-    dFixedVal = GetFixedValue();
-
     // 
+    if(nVar_sub_ == 0)
+    {
+        dRetBound = Q_sub_[0];
+        std::printf("N = 1: returning bound = %.1f\n", dRetBound); // TODO fprintf output
+        return dRetBound;
+    }
 
     for(i = 0; i < len_y; ++i)
     {
@@ -177,23 +187,25 @@ double BiqModel::SDPbound()
     }
     
     sim(dAlpha);
-    iStatus = CallLBFGSB(dAlpha, dFixedVal, dTol, nbit);
+    iStatus = CallLBFGSB(dAlpha, dTol, nbit);
 
-    return 0.0;
+    //std::printf("\n");
+    //print_symmetric_matrix(Q_sub_, nVar_sub_ + 1);
+  
+    //std::printf("\ny:\n");
+    //print_vector(y_, nVar_sub_);
+
+    double foo = UpdateInequalities();
+
+    return dRetBound;
 }
 
-double BiqModel::GetFixedValue()
-{
-    // TODO
-
-    return 0.0;
-}
-
-int BiqModel::CallLBFGSB(double dAlpha, double dFixedVal, double dTol, int &nbit)
+int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
 {
     int retStatus = 1;
     int mem = mmax;
     int i;
+    int N = nVar_sub_ + 1;
     bool bStopBFGS = false;
     bool bPrune;
     double factr = 0.000005;
@@ -215,10 +227,12 @@ int BiqModel::CallLBFGSB(double dAlpha, double dFixedVal, double dTol, int &nbit
 
     
     // Initialize y
+    /*
     for(i = 0;  i < nIneq_; ++i)
     {
         y_[mB_ + mA_ + i] = Cuts_.at(i).y_;
     }
+    */
 
     // compute the bounds for y
     //// equalities
@@ -274,7 +288,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dFixedVal, double dTol, int &nbit
             }
             gradInorm_ /= scaleIneq;
 
-            dBound = (max_problem_) ? f_ - dFixedVal : dFixedVal - f_;
+            dBound = (max_problem_) ? f_  : - f_;
             bPrune = Prune(); 
 
             if(bPrune
@@ -288,7 +302,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dFixedVal, double dTol, int &nbit
         else if(strncmp(task, "STOP", 4) == 0)
         {
             bStopBFGS = true;
-            retStatus = 0;  
+            retStatus = 0; 
         }
         else
         {
@@ -298,15 +312,16 @@ int BiqModel::CallLBFGSB(double dAlpha, double dFixedVal, double dTol, int &nbit
 
     // Scale: X = X / alpha
     double dAlphaInv = 1.0 / dAlpha;
-    int N2 = N_*N_;
+    int N2 = N*N;
     int incx = 1; 
     dscal_(N2, dAlphaInv, X_, incx);
     // Update Z so that X = Z*Z'
     double scb = 10000.0 * dAlpha;
     double sca = 0.01/ sqrt(scb);
-    int NM = N_ * M_;
+    int NM = N * M_;
     int incz = 1;
     dscal_(NM, sca, Z_, incz); 
+    //std::printf("LBFGSB bound = %f\n", dBound);
     return retStatus;
 }
 
@@ -314,19 +329,21 @@ int BiqModel::CallLBFGSB(double dAlpha, double dFixedVal, double dTol, int &nbit
 /// @param alpha 
 void BiqModel::sim(double alpha)
 {
-    int N2 = N_*N_;
+    int N  = nVar_sub_ + 1;
+    int N2 = N*N;
     double dAlphaInv = 1.0 / alpha;
     // prepare to copy Q to X_
     // memory spacing for the two arrays
     int INCQ = 1; 
     int INCX = 1;
     // copy Q to X 
-    dcopy_(N2, Q_, INCQ, X_, INCX);
+    dcopy_(N2, Q_sub_, INCQ, X_, INCX);
 
     // call the A and B methods transposed
     B(TRANSP, alpha);
     A(TRANSP, alpha);
     ProjSDP();
+
 
     f_ = f_ * 1000.0 * (dAlphaInv / 1000.0); // TODO see what happens 
 
@@ -335,10 +352,9 @@ void BiqModel::sim(double alpha)
     B(NOTRANSP, alpha);
     A(NOTRANSP, alpha);
 
-
-
     f_ += alpha * (0.5 * static_cast<double>(N2));
 
+    //print_symmetric_matrix(X_,N);
 }
 
 /// @brief 
@@ -351,7 +367,8 @@ void BiqModel::ProjSDP()
     double borneinf = 1e-8;
 
     char UPLO = 'L';
-    int LDX = N_;
+    int N = nVar_sub_ + 1;
+    int LDX = N;
 
     // Operator norm for X to get a upper bound of the spectral radius of X
     // |X|_2 \leq \sqrt{ |X|_1 |X|_inf }  (Holder's inequality)
@@ -360,9 +377,9 @@ void BiqModel::ProjSDP()
     // Frobenius norm is also an upper bound on the spectral radius of X:
     //      |X|_2 <= |X|_F
     char NORM = 'I'; // in
-    double norminf = dlansy_(NORM, UPLO, N_, X_, LDX, DWORK_);
+    double norminf = dlansy_(NORM, UPLO, N, X_, LDX, DWORK_);
     NORM = 'F';
-    double normfro = dlansy_(NORM, UPLO, N_, X_, LDX, DWORK_);
+    double normfro = dlansy_(NORM, UPLO, N, X_, LDX, DWORK_);
 
        // bornesup = min(norminf, normfro)
     bornesup = (norminf < normfro) ? norminf : normfro;
@@ -387,21 +404,21 @@ void BiqModel::ProjSDP()
     int IL = 0;
     int IU = 0;
     double ABSTOL = 0; // TODO could be a param 
-    int LDZ = N_;
+    int LDZ = N;
     int INFO;
 
-    int M = 0;
+    
 
-    dsyevr_(JOBZ, RANGE, UPLO, N_, X_, LDX, VL, VU, IL, IU, ABSTOL,
-            M, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
+    dsyevr_(JOBZ, RANGE, UPLO, N, X_, LDX, VL, VU, IL, IU, ABSTOL,
+            M_, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
 
    
    // Check if the eigensolver failed (i.e., if INFO != 0)
     if (INFO) {
         VL = 0.0;
         ABSTOL = 0.0;
-        dsyevr_(JOBZ, RANGE, UPLO, N_, X_, LDX, VL, VU, IL, IU, ABSTOL,
-            M, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
+        dsyevr_(JOBZ, RANGE, UPLO, N, X_, LDX, VL, VU, IL, IU, ABSTOL,
+            M_, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
         if (INFO) {
             fprintf(stderr, 
                     "Error: eigenvalue computation failed (INFO = %d)\n", 
@@ -411,15 +428,15 @@ void BiqModel::ProjSDP()
     }
     // Compute ff = 0.5*||X_+||^2 = 0.5*||W||^2
     int INCW = 1;
-    double normW = dnrm2_(M, W_, INCW);
+    double normW = dnrm2_(M_, W_, INCW);
     f_ = 0.5*(normW*normW);
     // Compute Z = Z*Diag(W)^{1/2}
     int INCZ = 1;
     double temp;
-    for (int j = 0; j < M; j++) {
+    for (int j = 0; j < M_; j++) {
         // Scale jth column of Z by sqrt(W[j])
         temp = sqrt(W_[j]);
-        dscal_(N_, temp, Z_ + j*N_, INCZ);
+        dscal_(N, temp, Z_ + j*N, INCZ);
     }
 
     char TRANS = 'N';
@@ -430,7 +447,7 @@ void BiqModel::ProjSDP()
      * Only writes to lower-triangular part of X.
      * When M = 0, we will obtain X = 0.
      */
-    dsyrk_(UPLO, TRANS, N_, M, ALPHA, Z_, LDZ, BETA, X_, LDX);
+    dsyrk_(UPLO, TRANS, N, M_, ALPHA, Z_, LDZ, BETA, X_, LDX);
 
 }
 
@@ -455,6 +472,7 @@ void BiqModel::A(int mode, double alpha)
     double dAlphaInv = 1.0 / alpha;
     double dTemp;
     int ineqCon;
+    int N = nVar_sub_ + 1;
 
     if(mode == TRANSP)
     {
@@ -463,16 +481,16 @@ void BiqModel::A(int mode, double alpha)
         {
             dTemp = scaleIneq * y_[mB_ + ineqCon];
 
-            for(auto& it : As_[ineqCon])
+            for(auto& it : As_sub_[ineqCon])
             {
                 if(it.i_ == it.j_)
                 {
-                    X_[it.i_ + it.j_ * N_] -= dTemp * it.dVal_;
+                    X_[it.i_ + it.j_ * N] -= dTemp * it.dVal_;
                 }
                 else
                 {
-                    X_[it.i_ + it.j_ * N_] -= dTemp * it.dVal_;
-                    X_[it.j_ + it.i_ * N_] -= dTemp * it.dVal_;
+                    X_[it.i_ + it.j_ * N] -= dTemp * it.dVal_;
+                    X_[it.j_ + it.i_ * N] -= dTemp * it.dVal_;
                 } 
             }
         }
@@ -482,35 +500,35 @@ void BiqModel::A(int mode, double alpha)
         {
             dTemp = 0.5 * scaleIneq * y_[mB_ + mA_ + ineqCon++];
             
-            switch (it.type_)
+            switch (it.second.type_)
             {
 
             case ONE:
             {
-                X_[it.i_ + it.j_ * N_] += dTemp;
-                X_[it.i_ + it.k_ * N_] += dTemp;
-                X_[it.j_ + it.k_ * N_] += dTemp;
+                X_[I(it.first) + J(it.first) * N] += dTemp;
+                X_[I(it.first) + K(it.first) * N] += dTemp;
+                X_[J(it.first) + K(it.first) * N] += dTemp;
             } break;
             
             case TWO:
             {
-                X_[it.i_ + it.j_ * N_] += dTemp;
-                X_[it.i_ + it.k_ * N_] -= dTemp;
-                X_[it.j_ + it.k_ * N_] -= dTemp;
+                X_[I(it.first) + J(it.first) * N] += dTemp;
+                X_[I(it.first) + K(it.first) * N] -= dTemp;
+                X_[J(it.first) + K(it.first) * N] -= dTemp;
             } break;
 
             case THREE:
             {
-                X_[it.i_ + it.j_ * N_] -= dTemp;
-                X_[it.i_ + it.k_ * N_] += dTemp;
-                X_[it.j_ + it.k_ * N_] -= dTemp;
+                X_[I(it.first) + J(it.first) * N] -= dTemp;
+                X_[I(it.first) + K(it.first) * N] += dTemp;
+                X_[J(it.first) + K(it.first) * N] -= dTemp;
             } break;
 
             default: // FOUR
             {
-                X_[it.i_ + it.j_ * N_] -= dTemp;
-                X_[it.i_ + it.k_ * N_] -= dTemp;
-                X_[it.j_ + it.k_ * N_] += dTemp;
+                X_[I(it.first) + J(it.first) * N] -= dTemp;
+                X_[I(it.first) + K(it.first) * N] -= dTemp;
+                X_[J(it.first) + K(it.first) * N] += dTemp;
             } break;
             }
         }
@@ -520,19 +538,19 @@ void BiqModel::A(int mode, double alpha)
         for(ineqCon = 0; ineqCon < mA_; ++ineqCon)
         {
 
-            f_ += scaleIneq * a_[ineqCon] * y_[mB_ + ineqCon];
+            f_ += scaleIneq * a_sub_[ineqCon] * y_[mB_ + ineqCon];
 
             g_[mB_ + ineqCon] = 0.0;
 
-            for(auto& it : As_[ineqCon])
+            for(auto& it : As_sub_[ineqCon])
             {
                 if(it.i_ = it.j_)
                 {
-                    g_[mB_ + ineqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N_];
+                    g_[mB_ + ineqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
                 }
                 else
                 {
-                    g_[mB_ + ineqCon] -= 2.0 * it.dVal_ * X_[it.i_ + it.j_ * N_];
+                    g_[mB_ + ineqCon] -= 2.0 * it.dVal_ * X_[it.i_ + it.j_ * N];
                 }
             }
             g_[mB_ + ineqCon] *= dAlphaInv;
@@ -546,35 +564,35 @@ void BiqModel::A(int mode, double alpha)
         {
             f_ += scaleIneq * y_[mB_ + mA_ + ineqCon];
             
-            switch (it.type_)
+            switch (it.second.type_)
             {
 
             case ONE:
             {
-                X_[it.i_ + it.j_ * N_] += dTemp;
-                X_[it.i_ + it.k_ * N_] += dTemp;
-                X_[it.j_ + it.k_ * N_] += dTemp;
+                X_[I(it.first) + J(it.first) * N] += dTemp;
+                X_[I(it.first) + K(it.first) * N] += dTemp;
+                X_[J(it.first) + K(it.first) * N] += dTemp;
             } break;
             
             case TWO:
             {
-                X_[it.i_ + it.j_ * N_] += dTemp;
-                X_[it.i_ + it.k_ * N_] -= dTemp;
-                X_[it.j_ + it.k_ * N_] -= dTemp;
+                X_[I(it.first) + J(it.first) * N] += dTemp;
+                X_[I(it.first) + K(it.first) * N] -= dTemp;
+                X_[J(it.first) + K(it.first) * N] -= dTemp;
             } break;
 
             case THREE:
             {
-                X_[it.i_ + it.j_ * N_] -= dTemp;
-                X_[it.i_ + it.k_ * N_] += dTemp;
-                X_[it.j_ + it.k_ * N_] -= dTemp;
+                X_[I(it.first) + J(it.first) * N] -= dTemp;
+                X_[I(it.first) + K(it.first) * N] += dTemp;
+                X_[J(it.first) + K(it.first) * N] -= dTemp;
             } break;
 
             default: // FOUR
             {
-                X_[it.i_ + it.j_ * N_] -= dTemp;
-                X_[it.i_ + it.k_ * N_] -= dTemp;
-                X_[it.j_ + it.k_ * N_] += dTemp;
+                X_[I(it.first) + J(it.first) * N] -= dTemp;
+                X_[I(it.first) + K(it.first) * N] -= dTemp;
+                X_[J(it.first) + K(it.first) * N] += dTemp;
             } break;
             }
 
@@ -605,7 +623,7 @@ void BiqModel::B(int mode, double alpha)
 
     double dAlphaInv = 1.0 / alpha;
     double dTemp;
-
+    int N = nVar_sub_ + 1;
     //std::vector<BiqTriInequality>::iterator it = Bs_.begin();
 
     if(mode == TRANSP)
@@ -613,16 +631,16 @@ void BiqModel::B(int mode, double alpha)
         for(int eqCon = 0; eqCon < mB_; ++eqCon)
         {
             dTemp = scaleEq * y_[eqCon];
-            for(auto& it : Bs_[eqCon])
+            for(auto& it : Bs_sub_[eqCon])
             {
                 if(it.i_ == it.j_)
                 {
-                    X_[it.i_ + it.j_ * N_] -= dTemp * it.dVal_;
+                    X_[it.i_ + it.j_ * N] -= dTemp * it.dVal_;
                 }
                 else
                 {
-                    X_[it.i_ + it.j_ * N_] -= dTemp * it.dVal_; // why not * 2.0 and skip the next line 
-                    X_[it.j_ + it.i_ * N_] -= dTemp * it.dVal_;
+                    X_[it.i_ + it.j_ * N] -= dTemp * it.dVal_; // why not * 2.0 and skip the next line 
+                    X_[it.j_ + it.i_ * N] -= dTemp * it.dVal_;
                 }
             }
         }
@@ -631,18 +649,18 @@ void BiqModel::B(int mode, double alpha)
     {
         for(int eqCon = 0; eqCon < mB_; ++eqCon)   
         {
-            f_ +=  scaleEq * b_[eqCon] * y_[eqCon];
+            f_ +=  scaleEq * b_sub_[eqCon] * y_[eqCon];
 
             g_[eqCon] = 0.0;
-            for(auto& it: Bs_[eqCon])
+            for(auto& it: Bs_sub_[eqCon])
             {
                 if(it.i_ == it.j_)
                 {
-                    g_[eqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N_];
+                    g_[eqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
                 }
                 else
                 {
-                    g_[eqCon] -= 2.0 * it.dVal_ * X_[it.i_ + it.j_ * N_];
+                    g_[eqCon] -= 2.0 * it.dVal_ * X_[it.i_ + it.j_ * N];
                 }
             }
             g_[eqCon] *= dAlphaInv;
@@ -673,16 +691,37 @@ void BiqModel::CreateSubProblem()
     int *piSol = new int[nVar_];
 
     std::fill_n(piSol, nVar_, 0);
+    
+    vbiqVarStatus.at(0) = BiqVarFixedToOne;
+    piSol[0] = 1;
+    vbiqVarStatus.at(3) = BiqVarFixedToOne;
+    piSol[3] = 1;
+    /*
+    vbiqVarStatus.at(4) = BiqVarFixedToOne;
+    piSol[4] = 1;
+    vbiqVarStatus.at(5) = BiqVarFixedToOne;
+    piSol[5] = 1;
+    */
 
-    vbiqVarStatus.at(0) = BiqVarFixedToZero;
-    piSol[0] = 0;
-    vbiqVarStatus.at(1) = BiqVarFixedToOne;
-    piSol[1] = 1;
+    /*
+    vbiqVarStatus.at(1) = BiqVarFixedToZero;
+    piSol[1] = 0;
+    vbiqVarStatus.at(2) = BiqVarFixedToZero;
+    piSol[2] = 0;
+    */
+
 
     int nFixed = GetOffset(vbiqVarStatus);
 
+    nVar_sub_ = nVar_ - nFixed;
+
     BuildConstraints(mB_, b_, Bs_, b_sub_, Bs_sub_,
                         piSol, vbiqVarStatus, nFixed); 
+
+
+    BuildConstraints(mA_, a_, As_, a_sub_, As_sub_,
+                        piSol, vbiqVarStatus, nFixed); 
+
 
     BuildObjective(piSol, vbiqVarStatus, nFixed);
 }
@@ -691,52 +730,43 @@ void BiqModel::CreateSubProblem()
 void BiqModel::BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int i, j;
-    int nSubVar = nVar_ - nFixed;
     double dConstant;
     //
     GetSubMatrix(vbiqVarStatus, nFixed);
     dConstant = GetConstant(Qs_, piSol, vbiqVarStatus);
     //
     GetLinear(Qs_, piSol, vbiqVarStatus, nFixed);
-    
-    // add piSol to pdTmp_sub_ diag
-    // [i, j] = [i + j *N] -> [i,i] = [i*(1+N)]
-    for(i = 0; i < nSubVar; ++i)
-    {
-        pdTmp_sub_[i*(1+nSubVar)] = pdTmpLinear_[i];
-    }
 
     // Set constant
-    //Q_sub_[nSubVar + nSubVar*(nSubVar + 1)] = Q_[nVar_ + nVar_*(nVar_ + 1)]; // original 
-    Q_sub_[nSubVar + nSubVar*(nSubVar + 1)] = dConstant; //  use GetConstant since the sol is shifted to {-1, 1}?
+    //Q_sub_[nVar_sub_ + nVar_sub_*(nVar_sub_ + 1)] = Q_[nVar_ + nVar_*(nVar_ + 1)]; // original 
+    Q_sub_[nVar_sub_ + nVar_sub_*(nVar_sub_ + 1)] = dConstant; //  use GetConstant since the sol is shifted to {-1, 1}?
     
     // build Q_sub_
-    for(i = 0; i < nSubVar; ++i)
+    for(i = 0; i < nVar_sub_; ++i)
     {
-        for(j = 0; j < nSubVar; ++j)
+        for(j = 0; j < nVar_sub_; ++j)
         {
+            Q_sub_[i + j * (nVar_sub_ + 1)] = pdTmp_sub_[i + j * nVar_sub_]; 
+            /*
+            // If we start with zeros on diag it should remain that way
             if(i != j)
             {
-                Q_sub_[i + j * (nSubVar + 1)] = pdTmp_sub_[i + j * nSubVar]; 
+                Q_sub_[i + j * (nVar_sub_ + 1)] = pdTmp_sub_[i + j * nVar_sub_];
             }
             else
             {
-                Q_sub_[i + j * (nSubVar + 1)] = 0.0;
+                Q_sub_[i + j * (nVar_sub_ + 1)] = 0.0; 
             }
+            */ 
         }
     }
 
     // lay down the linear terms
-    for(i = 0; i < nSubVar; ++i)
+    for(i = 0; i < nVar_sub_; ++i)
     {
-        Q_sub_[i + nSubVar*(nSubVar + 1)] = pdTmp_sub_[i + i*nSubVar];
-        Q_sub_[nSubVar + i*(nSubVar + 1)] = pdTmp_sub_[i + i*nSubVar];
+        Q_sub_[i + nVar_sub_*(nVar_sub_ + 1)] = pdTmpLinear_[i];
+        Q_sub_[nVar_sub_ + i*(nVar_sub_ + 1)] = pdTmpLinear_[i];
     }
-
-    // add the constant
-    print_symmetric_matrix(Q_sub_, nSubVar+1);
-    //std::printf("\n\n");
-    //print_vector(pdTmpLinear_, nVar_);
 }
 
 /// @brief 
@@ -746,7 +776,7 @@ void BiqModel::BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatu
 /// @param sMatdest 
 void BiqModel::BuildConstraints(int nRows,
                                 double *RHSsource, std::vector<Sparse> sMatArraySource,
-                                double *RHSdest,   std::vector<Sparse> sMatArraydest,
+                                double *RHSdest,   std::vector<Sparse> &sMatArraydest,
                                 int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int nnzAdded;
@@ -754,7 +784,6 @@ void BiqModel::BuildConstraints(int nRows,
     double dCoefMatNorm;
     double dScaleFactor;
     double dConstant;
-    int nVarSub = nVar_ - nFixed;
 
     Sparse::iterator itSource;
     
@@ -767,6 +796,7 @@ void BiqModel::BuildConstraints(int nRows,
         //
         dScaleFactor = 1.0;
 
+        RHSdest[k] =  RHSsource[k];
         // set itterator for fill
         sMatArraydest.at(k).resize(100);
         itSource = (sMatArraydest.at(k)).begin();
@@ -784,11 +814,11 @@ void BiqModel::BuildConstraints(int nRows,
         } 
 
         // Linear Part
-        for(int j = 0; j < nVarSub; ++j)
+        for(int j = 0; j < nVar_sub_; ++j)
         {
             if(fabs(pdTmpLinear_[j]) > 0.0)
             {
-                itSource->i_    = nVarSub;
+                itSource->i_    = nVar_sub_;
                 itSource->j_    = j;
                 itSource->dVal_ = pdTmpLinear_[j] * dScaleFactor;
                 ++itSource;
@@ -798,8 +828,8 @@ void BiqModel::BuildConstraints(int nRows,
         // new constant value on left-side
         if(fabs(dConstant) > 0.0)
         {
-            itSource->i_    = nVarSub;
-            itSource->j_    = nVarSub;
+            itSource->i_    = nVar_sub_;
+            itSource->j_    = nVar_sub_;
             itSource->dVal_ = dConstant * dScaleFactor;
             ++itSource;
         }
@@ -813,14 +843,11 @@ void BiqModel::BuildConstraints(int nRows,
 /// @param nFixed 
 void BiqModel::GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
-    int nFree;
     int i, ii, jj;
     int piOffset[nVar_];
 
-    nFree = nVar_ - nFixed;
-
     // init the submatrix zero out Q_sub_
-    for(i = 0; i < nFree*nFree; ++i)
+    for(i = 0; i < nVar_sub_*nVar_sub_; ++i)
     {
         pdTmp_sub_[i] = 0.0;
     }
@@ -832,8 +859,8 @@ void BiqModel::GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
         {
             ii = it.i_ - vOffset_.at(it.i_);
             jj = it.j_ - vOffset_.at(it.j_);
-            pdTmp_sub_[ii + jj * nFree] = it.dVal_;
-            pdTmp_sub_[jj + ii * nFree] = it.dVal_;
+            pdTmp_sub_[ii + jj * nVar_sub_] = it.dVal_;
+            pdTmp_sub_[jj + ii * nVar_sub_] = it.dVal_;
         }
     }
 }
@@ -841,7 +868,7 @@ void BiqModel::GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 /// @brief 
 /// @param sSourceMat As_ or Bs_
 /// @param vbiqVarStatus this is until the BiqNodeDesc
-///         being able to pass the real one
+///         being able to pass the real :
 /// @return 
 double BiqModel::GetSubMatrixSparse(Sparse sSourceMat, 
                                     std::vector<BiqVarStatus> vbiqVarStatus, 
@@ -852,7 +879,6 @@ double BiqModel::GetSubMatrixSparse(Sparse sSourceMat,
     int ii, jj, pos = 0;
     bool bBothFree;
     
-    // zero out nnzAdded to be safe
     nnzAdded = 0;
     // fill in sTmp_sub_
     Sparse::iterator itDest =  sTmp_sub_.begin(); // TODO how to not be a pointer 
@@ -947,10 +973,9 @@ void BiqModel::GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> 
     double dSum = 0.0;
     double dVal = 0.0;
     int ii, jj, pos = 0;
-    int nFree = nVar_ - nFixed;
     bool bIfree, bJfree;
     
-    for(int i = 0; i < nFree; ++i)
+    for(int i = 0; i < nVar_sub_; ++i)
     {
         pdTmpLinear_[i] = 0.0;
     }
@@ -1007,4 +1032,139 @@ int BiqModel::GetOffset(std::vector<BiqVarStatus> vbiqVarStatus)
     }
 
     return nFixedRet;
+}
+
+double BiqModel::UpdateInequalities()
+{
+    double dRetVal = 0.0;
+ 
+    // 
+    dRetVal = GetViolatedCuts();
+
+    for(auto& it : Cuts_)
+    {
+        
+       std::printf("Cut[%d, %d, %d] \t value = %f \t type = %d\n",
+                    I(it.first), J(it.first), K(it.first),
+                    it.second.value_, it.second.type_);
+    }
+
+    return dRetVal;
+}
+
+/// @brief 
+/// @return 
+double BiqModel::GetViolatedCuts()
+{ 
+    double dRetMinIneq = INFINITY;
+    double dTestIneq;
+    int i, j, k, type;
+    // TODO make following data a param
+    double dGapCuts = -5e-2;
+    int nCuts = 500;
+
+    // loop through all the inequalities
+    for(type = 1; type <= 4; ++type)
+    {
+        for(i = 0; i < (nVar_sub_ + 1); ++i)
+        {
+            for(j = 0; j < i; ++j)
+            {
+                for(k = 0; k < j; ++k)
+                {
+                    dTestIneq = EvalInequalities(static_cast<TriType>(type), i, j, k);
+                    // keep track of the minimum ineq
+                    dRetMinIneq = (dTestIneq < dRetMinIneq) ? dTestIneq : dRetMinIneq;
+                
+
+
+                    if(dTestIneq < dGapCuts && Cuts_.size() < nCuts)
+                    {
+                        // (1) add cuts until full
+                        
+                        // check if the cut has been added ..
+                        if(Cuts_.find(BiqTriTripple(i,j,k)) == Cuts_.end())
+                        {
+                            Cuts_.insert(
+                               { BiqTriTripple(i,j,k),
+                                BiqTriInequality(static_cast<TriType>(type), dTestIneq, INFINITY)});
+                        }
+
+                        // upadte the dLeastViolatedIneq_ for our records
+                        if(dTestIneq > dLeastViolatedIneq_)
+                        {
+                            dLeastViolatedIneq_ = dTestIneq;
+                            bttLeastViolatedIneq_ = BiqTriTripple(i,j,k);
+                        }
+                    }
+                    else if(dTestIneq < dLeastViolatedIneq_)
+                    {
+                        // (2) the list is full
+                        // so add next better cut
+
+                        // swap out the Least Violated with this new one
+                        Cuts_.erase(bttLeastViolatedIneq_);
+                        Cuts_.insert(
+                               { BiqTriTripple(i,j,k),
+                                BiqTriInequality(static_cast<TriType>(type), dTestIneq, INFINITY)});
+
+                        dLeastViolatedIneq_ = -INFINITY;
+                        for(auto &it : Cuts_)
+                        {
+                            if(it.second.value_ < dLeastViolatedIneq_)
+                            {
+                                dLeastViolatedIneq_ = it.second.value_;
+                                bttLeastViolatedIneq_ = BiqTriTripple(i,j,k);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+    return dRetMinIneq;
+}
+
+double BiqModel::EvalInequalities(TriType triType, int ii, int jj, int kk)
+{
+    double dRetIneqVal = 0.0;
+
+    // compute the inequality
+    switch (triType)
+    {
+        case ONE:
+        {
+            dRetIneqVal = X_[ii+jj*(nVar_sub_ + 1)] + X_[ii+kk*(nVar_sub_ + 1)] + X_[jj+kk*(nVar_sub_ + 1)] + 1.0;
+        }
+        break;
+        
+        case TWO:
+        {
+            dRetIneqVal = X_[ii+jj*(nVar_sub_ + 1)] - X_[ii+kk*(nVar_sub_ + 1)] - X_[jj+kk*(nVar_sub_ + 1)] + 1.0;
+        }
+        break; 
+
+        case THREE:
+        {
+            dRetIneqVal = -X_[ii+jj*(nVar_sub_ + 1)] + X_[ii+kk*(nVar_sub_ + 1)] - X_[jj+kk*(nVar_sub_ + 1)] + 1.0;
+        }
+        break;
+
+        case FOUR:
+        {
+            dRetIneqVal = -X_[ii+jj*(nVar_sub_ + 1)] - X_[ii+kk*(nVar_sub_ + 1)] + X_[jj+kk*(nVar_sub_ + 1)] + 1.0;
+        }
+        break;
+
+        default: // error
+            break;
+    }
+
+
+
+    return dRetIneqVal;
 }

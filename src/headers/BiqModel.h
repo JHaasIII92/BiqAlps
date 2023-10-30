@@ -9,6 +9,9 @@
 #include "math.h"
 #include<iostream>
 #include <utility>
+#include <list>
+#include <map>
+#include <tuple>
 
 
 class BiqModel: public AlpsModel
@@ -39,7 +42,7 @@ private:
     double *Q_sub_;                           // Dense Objective matrix   Q_[i + j*nVar_] to get the i,j
     int nVar_sub_;                            // Number of variables
 
-    // array of array
+    // array of Sparse
     std::vector<Sparse> As_sub_;     // Inequality constraint matrix   
     double *a_sub_;                            // Right-hand-side inequality constraints
     int mA_sub_;                               // Number of inequality constraints 
@@ -56,8 +59,8 @@ private:
 
     /* Triangle Inequalitie variables */
     TriCuts Cuts_;
-    TriCuts List_;
-
+    double dLeastViolatedIneq_;
+    BiqTriTripple bttLeastViolatedIneq_;
     /* L-BFGS-B Data */
     double gradInorm_;
     double gradEnorm_;
@@ -109,7 +112,7 @@ private:
 
     void AllocSubCons();
 
-    int CallLBFGSB(double dAlpha, double dFixedVal, double dTol, int &nbit);
+    int CallLBFGSB(double dAlpha, double dTol, int &nbit);
 
     void ProjSDP();
 
@@ -119,13 +122,11 @@ private:
 
     void B(int mode, double alpha);
     
-    double GetFixedValue();
-    
     bool Prune();
     
     void BuildConstraints(int nRows,
                           double *pdRHSsource, std::vector<Sparse> sMatSource,
-                          double *pdRHSdest,   std::vector<Sparse> sMatdest,
+                          double *pdRHSdest,   std::vector<Sparse> &sMatdest,
                           int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     double GetSubMatrixSparse(Sparse sSourceMat, std::vector<BiqVarStatus> vbiqVarStatus, int & nnzAdded, int nFixed);
@@ -139,6 +140,12 @@ private:
     void GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
+
+    double UpdateInequalities();
+
+    double GetViolatedCuts();
+
+    double EvalInequalities(TriType triType, int ii, int jj, int kk);
 };
 
 #endif
