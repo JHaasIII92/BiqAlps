@@ -68,7 +68,6 @@ BiqModel::BiqModel(
     int wa_length = (2 * mmax + 5) * nMax + 11 * mmax * mmax + 8 * mmax;
     int iwa_length = 3 * nMax;
 
-    nIneq_ = 0;
     f_ = 0.0;
     g_ = new double[nMax];
     y_ = new double[nMax];
@@ -82,9 +81,9 @@ BiqModel::BiqModel(
     AddDiagCons();
     AllocSubCons();
 
-    // For adding cuts after the list is full
-    dLeastViolatedIneq_ = -INFINITY;
-    bttLeastViolatedIneq_ = BiqTriTripple(-1,-1,-1);
+    // Set cut data 
+    Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
+    nIneq_ = 0;
 
     // set some memory for the sTemp_sub_ matrix
     sTmp_sub_.resize(N_*N_);
@@ -168,10 +167,18 @@ double BiqModel::SDPbound()
     int i;
     int iStatus;
     int nbit = 0;
-    double dAlpha = 0.01;
-    double dTol = 1e-6;
+    int nAdded;
+    int nSubtracted;
+    double dMinAllIneq;
+    double dAlpha = 10;
+    double dTol = 0.08;
     double dRetBound = 0.0;
     int len_y = mA_ + mB_ + nIneq_;
+    // param
+    int nMinAdded = 50;
+int nMaxIter = 30;
+    double dScaleAlpha = 0.5;
+    double dScaleTol = 0.93;
 
     // 
     if(nVar_sub_ == 0)
@@ -187,19 +194,62 @@ double BiqModel::SDPbound()
     }
     
     sim(dAlpha);
-    iStatus = CallLBFGSB(dAlpha, dTol, nbit);
 
-    //std::printf("\n");
-    //print_symmetric_matrix(Q_sub_, nVar_sub_ + 1);
-  
-    //std::printf("\ny:\n");
-    //print_vector(y_, nVar_sub_);
+    for(int i = 0; i <= nMaxIter; ++i)
+    {
+        iStatus = CallLBFGSB(dAlpha, dTol, nbit);
+        dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
+        PrintBoundingTable(i, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
 
-    double foo = UpdateInequalities();
-
+        if(nAdded < nMinAdded)
+        {
+                dAlpha *= dScaleAlpha;
+                dTol *= dScaleTol;
+        }
+    }
+    
     return dRetBound;
 }
 
+void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq /*double dTime*/)
+{
+    if(iter == 0)
+    {
+        std::printf("======================================================================================\n");
+        std::printf("%4s  %6s  %5s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %4s  %4s  %4s\n", 
+                    "Iter", 
+                    "Time", 
+                    "bound", 
+                    "alpha", 
+                    "tol", 
+                    "nbit", 
+                    "Enorm", 
+                    "Inorm", 
+                    "ynorm", 
+                    "minCut", 
+                    "NCut", 
+                    "NSub", 
+                    "NAdd");
+        std::printf("======================================================================================\n");
+    }
+
+    std::printf("%4d  %6.1f  %5.1f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %5.0e  %6.0e  %4d  -%-3d  +%-3d\n", 
+                iter, 
+                0.0, /* TODO time*/
+                f_, 
+                dAlpha, 
+                dTol, 
+                nBit, 
+                gradEnorm_,
+                gradInorm_,
+                0.0, /* TODO ynorm*/
+                dMinAllIneq, 
+                nIneq_, 
+                nSubtracted,
+                nAdded
+    );
+
+}
 int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
 {
     int retStatus = 1;
@@ -213,7 +263,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     double dMinTemp;
     double dBound;
     char task[60];
-    int iprint = 101;
+    int iprint = -1;
     char csave[60];
     int lsave[4];
     int isave[44];
@@ -227,12 +277,11 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
 
     
     // Initialize y
-    /*
     for(i = 0;  i < nIneq_; ++i)
     {
         y_[mB_ + mA_ + i] = Cuts_.at(i).y_;
     }
-    */
+
 
     // compute the bounds for y
     //// equalities
@@ -265,6 +314,13 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
            // L-BFGS-B requesting new f and g
            sim(dAlpha);
            ++nbit; 
+
+           /*
+           std::printf("f = %f\n",f_);
+           std::printf("=====\n");
+           print_vector(g_, len_y);
+           exit(0);
+           */
         }
         else if(strncmp(task, "NEW_X", 5) == 0)
         {
@@ -287,6 +343,11 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
                 gradInorm_ = (gradInorm_ < fabs(dMinTemp)) ? fabs(dMinTemp) : gradInorm_;
             }
             gradInorm_ /= scaleIneq;
+
+            /*
+            std::printf("GradENorm = %f\n", gradEnorm_);
+            exit(0);
+            */
 
             dBound = (max_problem_) ? f_  : - f_;
             bPrune = Prune(); 
@@ -344,9 +405,14 @@ void BiqModel::sim(double alpha)
     A(TRANSP, alpha);
     ProjSDP();
 
+    //std::printf("After ProjSdp f_ = %f\n", f_);
 
     f_ = f_ * 1000.0 * (dAlphaInv / 1000.0); // TODO see what happens 
 
+    /*
+    print_symmetric_matrix(X_, N);
+    exit(0);
+    */
 
     // call the A and B methods not transposed
     B(NOTRANSP, alpha);
@@ -388,7 +454,7 @@ void BiqModel::ProjSDP()
     if (bornesup < borneinf) {
         bornesup = 2.0 * borneinf;
     }
-
+    
     //printf("\nX = \n"); print_symmetric_matrix(X, N);
 
     /* Compute the positive eigenvalues and associated eigenvectors of X.
@@ -407,8 +473,12 @@ void BiqModel::ProjSDP()
     int LDZ = N;
     int INFO;
 
-    
-
+    /*
+    std::printf("Printing X_..\n");
+    print_symmetric_matrix(X_,N);
+    exit(0);
+    */
+    //std::printf("") /// print out each input // which dsyevr_ // is there any rng used??
     dsyevr_(JOBZ, RANGE, UPLO, N, X_, LDX, VL, VU, IL, IU, ABSTOL,
             M_, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
 
@@ -426,6 +496,13 @@ void BiqModel::ProjSDP()
             exit(1);
         }
     }
+
+    /*
+    std::printf("N = %d \t M = %d\n", N, M_);
+    print_vector(Z_, N*M_);
+    exit(0);
+    */
+
     // Compute ff = 0.5*||X_+||^2 = 0.5*||W||^2
     int INCW = 1;
     double normW = dnrm2_(M_, W_, INCW);
@@ -438,6 +515,13 @@ void BiqModel::ProjSDP()
         temp = sqrt(W_[j]);
         dscal_(N, temp, Z_ + j*N, INCZ);
     }
+
+    /*
+    std::printf("Eigen Values\n");
+    print_vector(W_, M_);
+    std::printf("=====\n");
+    exit(0);
+    */
 
     char TRANS = 'N';
     double ALPHA = 1.0;
@@ -496,39 +580,39 @@ void BiqModel::A(int mode, double alpha)
         }
         // cut inequalities
         ineqCon = 0;
-        for(auto& it : Cuts_)
+        for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
             dTemp = 0.5 * scaleIneq * y_[mB_ + mA_ + ineqCon++];
             
-            switch (it.second.type_)
+            switch (it->type_)
             {
 
             case ONE:
             {
-                X_[I(it.first) + J(it.first) * N] += dTemp;
-                X_[I(it.first) + K(it.first) * N] += dTemp;
-                X_[J(it.first) + K(it.first) * N] += dTemp;
+                X_[it->i_ + it->j_ * N] += dTemp;
+                X_[it->i_ + it->k_ * N] += dTemp;
+                X_[it->j_ + it->k_ * N] += dTemp;
             } break;
             
             case TWO:
             {
-                X_[I(it.first) + J(it.first) * N] += dTemp;
-                X_[I(it.first) + K(it.first) * N] -= dTemp;
-                X_[J(it.first) + K(it.first) * N] -= dTemp;
+                X_[it->i_ + it->j_ * N] += dTemp;
+                X_[it->i_ + it->k_ * N] -= dTemp;
+                X_[it->j_ + it->k_ * N] -= dTemp;
             } break;
 
             case THREE:
             {
-                X_[I(it.first) + J(it.first) * N] -= dTemp;
-                X_[I(it.first) + K(it.first) * N] += dTemp;
-                X_[J(it.first) + K(it.first) * N] -= dTemp;
+                X_[it->i_ + it->j_ * N] -= dTemp;
+                X_[it->i_ + it->k_ * N] += dTemp;
+                X_[it->j_ + it->k_ * N] -= dTemp;
             } break;
 
             default: // FOUR
             {
-                X_[I(it.first) + J(it.first) * N] -= dTemp;
-                X_[I(it.first) + K(it.first) * N] -= dTemp;
-                X_[J(it.first) + K(it.first) * N] += dTemp;
+                X_[it->i_ + it->j_ * N] -= dTemp;
+                X_[it->i_ + it->k_ * N] -= dTemp;
+                X_[it->j_ + it->k_ * N] += dTemp;
             } break;
             }
         }
@@ -560,39 +644,32 @@ void BiqModel::A(int mode, double alpha)
 
         // cut inequalities
         ineqCon = 0;
-        for(auto& it : Cuts_)
+        
+        for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
             f_ += scaleIneq * y_[mB_ + mA_ + ineqCon];
-            
-            switch (it.second.type_)
+            //std::printf("Y =  %f\n", y_[mB_ + mA_ + ineqCon]);
+            switch (it->type_)
             {
 
             case ONE:
             {
-                X_[I(it.first) + J(it.first) * N] += dTemp;
-                X_[I(it.first) + K(it.first) * N] += dTemp;
-                X_[J(it.first) + K(it.first) * N] += dTemp;
+                dTemp = X_[it->i_ + it->j_ * N] + X_[it->i_ + it->k_ * N] + X_[it->j_ + it->k_ * N];
             } break;
             
             case TWO:
             {
-                X_[I(it.first) + J(it.first) * N] += dTemp;
-                X_[I(it.first) + K(it.first) * N] -= dTemp;
-                X_[J(it.first) + K(it.first) * N] -= dTemp;
+                dTemp = X_[it->i_ + it->j_ * N] - X_[it->i_ + it->k_ * N] - X_[it->j_ + it->k_ * N];
             } break;
 
             case THREE:
             {
-                X_[I(it.first) + J(it.first) * N] -= dTemp;
-                X_[I(it.first) + K(it.first) * N] += dTemp;
-                X_[J(it.first) + K(it.first) * N] -= dTemp;
+                dTemp = -X_[it->i_ + it->j_ * N] + X_[it->i_ + it->k_ * N] - X_[it->j_ + it->k_ * N];
             } break;
 
             default: // FOUR
             {
-                X_[I(it.first) + J(it.first) * N] -= dTemp;
-                X_[I(it.first) + K(it.first) * N] -= dTemp;
-                X_[J(it.first) + K(it.first) * N] += dTemp;
+                dTemp = -X_[it->i_ + it->j_ * N] - X_[it->i_ + it->k_ * N] + X_[it->j_ + it->k_ * N];
             } break;
             }
 
@@ -664,7 +741,7 @@ void BiqModel::B(int mode, double alpha)
                 }
             }
             g_[eqCon] *= dAlphaInv;
-            g_[eqCon] += b_[eqCon];
+            g_[eqCon] += b_sub_[eqCon];
             g_[eqCon] *= scaleEq;
         }
     }
@@ -692,11 +769,11 @@ void BiqModel::CreateSubProblem()
 
     std::fill_n(piSol, nVar_, 0);
     
+    /*
     vbiqVarStatus.at(0) = BiqVarFixedToOne;
     piSol[0] = 1;
     vbiqVarStatus.at(3) = BiqVarFixedToOne;
     piSol[3] = 1;
-    /*
     vbiqVarStatus.at(4) = BiqVarFixedToOne;
     piSol[4] = 1;
     vbiqVarStatus.at(5) = BiqVarFixedToOne;
@@ -1034,21 +1111,96 @@ int BiqModel::GetOffset(std::vector<BiqVarStatus> vbiqVarStatus)
     return nFixedRet;
 }
 
-double BiqModel::UpdateInequalities()
+double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
 {
     double dRetVal = 0.0;
- 
-    // 
+    double dIneqVal;
+    int yIndex;
+    nSubtracted = 0;
+    nAdded = 0;
+    BiqTriInequality btiTemp;
+    BiqTriTuple bttTemp;
+    TriMap::iterator itMap;
+    TriCuts::iterator itIneq;
+    TriCuts::iterator itNextIneq;
+    
+
+    // Fill the Heap_ with most violated cuts
     dRetVal = GetViolatedCuts();
 
-    for(auto& it : Cuts_)
+    // remove cuts from Cuts_ array
+    itNextIneq = Cuts_.begin();
+    yIndex = mB_ + mA_;
+    for(itIneq = Cuts_.begin(); itIneq < Cuts_.begin()+nIneq_; ++itIneq) 
     {
-        
-       std::printf("Cut[%d, %d, %d] \t value = %f \t type = %d\n",
-                    I(it.first), J(it.first), K(it.first),
-                    it.second.value_, it.second.type_);
+        dIneqVal = EvalInequalities(itIneq->type_, itIneq->i_, itIneq->j_, itIneq->k_);
+
+        itIneq->y_ = y_[yIndex]; yIndex++;
+        // if multiplier is small and inequality is large
+        if(itIneq->y_ < 1e-8 && dIneqVal > gradInorm_/10.0)
+        {
+            ++nSubtracted;
+        }
+        else
+        {
+            itNextIneq = itIneq;
+            ++itNextIneq;
+        }
     }
 
+    while (!Heap_.empty())
+    {
+        // get least violated cut
+        btiTemp = Heap_.top();
+        //std::printf("Cut[%d, %d, %d] \t value = %f \t type = %d\n", btiTemp.i_, btiTemp.j_, btiTemp.k_, btiTemp.value_, btiTemp.type_);
+        Heap_.pop();
+        if(itNextIneq != Cuts_.end())
+        {
+            // update the map so we know this cut has been included
+            bttTemp =  BiqTriTuple(btiTemp.type_, 
+                                btiTemp.i_, 
+                                btiTemp.j_, 
+                                btiTemp.k_
+            );
+            
+            itMap = Map_.find(bttTemp);
+            if(itMap == Map_.end())
+            {
+                Map_.insert({bttTemp, true});
+                // add it to the cut array
+                itNextIneq->i_ = btiTemp.i_;
+                itNextIneq->j_ = btiTemp.j_;
+                itNextIneq->k_ = btiTemp.k_;
+                itNextIneq->type_ = btiTemp.type_;
+                itNextIneq->y_ = btiTemp.y_;
+                ++itNextIneq;
+                ++nAdded;
+            }
+            else if(itMap->second == false)
+            {
+                // back in the cuts array
+                itMap->second = true;
+                // add it to the cut array
+                itNextIneq->i_ = btiTemp.i_;
+                itNextIneq->j_ = btiTemp.j_;
+                itNextIneq->k_ = btiTemp.k_;
+                itNextIneq->type_ = btiTemp.type_;
+                itNextIneq->y_ = btiTemp.y_;
+                ++itNextIneq;
+                ++nAdded;
+            }
+            else
+            {
+                /* Do not add the cut it is already in Cuts_*/
+            }
+        }
+        
+    }
+    
+    // TODO need to update the dual variable on each cut
+    // update the number of inequalites
+    nIneq_ = nIneq_ - nSubtracted + nAdded;
+    //std::printf("Added: %d \t Subtracted: %d \t nIneq = %d\n",nAdded, nSubtracted, nIneq_);
     return dRetVal;
 }
 
@@ -1058,11 +1210,13 @@ double BiqModel::GetViolatedCuts()
 { 
     double dRetMinIneq = INFINITY;
     double dTestIneq;
-    int i, j, k, type;
+    int i, j, k, type, count = 0;
     // TODO make following data a param
     double dGapCuts = -5e-2;
     int nCuts = 500;
-
+    BiqTriInequality btiTemp;
+    BiqTriTuple bttTemp;
+    TriMap::iterator itMap;
     // loop through all the inequalities
     for(type = 1; type <= 4; ++type)
     {
@@ -1072,59 +1226,45 @@ double BiqModel::GetViolatedCuts()
             {
                 for(k = 0; k < j; ++k)
                 {
+                    bttTemp = BiqTriTuple(type,i,j,k);
+                    itMap = Map_.find(bttTemp);
+
+                    // check if the key is in the map
+                    if(itMap != Map_.end() && itMap->second)
+                    {
+                        continue;
+                    }
+      
                     dTestIneq = EvalInequalities(static_cast<TriType>(type), i, j, k);
                     // keep track of the minimum ineq
                     dRetMinIneq = (dTestIneq < dRetMinIneq) ? dTestIneq : dRetMinIneq;
                 
 
+                    btiTemp = BiqTriInequality(
+                                    static_cast<TriType>(type),
+                                    i,j,k,
+                                    dTestIneq,
+                                    0.0);
 
-                    if(dTestIneq < dGapCuts && Cuts_.size() < nCuts)
+                    if(Heap_.size() < nCuts)
                     {
                         // (1) add cuts until full
-                        
-                        // check if the cut has been added ..
-                        if(Cuts_.find(BiqTriTripple(i,j,k)) == Cuts_.end())
-                        {
-                            Cuts_.insert(
-                               { BiqTriTripple(i,j,k),
-                                BiqTriInequality(static_cast<TriType>(type), dTestIneq, INFINITY)});
-                        }
+                        // check if the cut has been added .. to the map
+                        if(dTestIneq < dGapCuts)
+                            Heap_.push(btiTemp);
 
-                        // upadte the dLeastViolatedIneq_ for our records
-                        if(dTestIneq > dLeastViolatedIneq_)
-                        {
-                            dLeastViolatedIneq_ = dTestIneq;
-                            bttLeastViolatedIneq_ = BiqTriTripple(i,j,k);
-                        }
                     }
-                    else if(dTestIneq < dLeastViolatedIneq_)
+                    else if(btiTemp < Heap_.top())
                     {
-                        // (2) the list is full
-                        // so add next better cut
-
-                        // swap out the Least Violated with this new one
-                        Cuts_.erase(bttLeastViolatedIneq_);
-                        Cuts_.insert(
-                               { BiqTriTripple(i,j,k),
-                                BiqTriInequality(static_cast<TriType>(type), dTestIneq, INFINITY)});
-
-                        dLeastViolatedIneq_ = -INFINITY;
-                        for(auto &it : Cuts_)
-                        {
-                            if(it.second.value_ < dLeastViolatedIneq_)
-                            {
-                                dLeastViolatedIneq_ = it.second.value_;
-                                bttLeastViolatedIneq_ = BiqTriTripple(i,j,k);
-                            }
-                        }
+                        // (2) the list is full, so remove the least violated 
+                        // and then add in this new cut!
+                        Heap_.pop();
+                        Heap_.push(btiTemp);
                     }
                 }
             }
         }
     }
-
-
-
 
     return dRetMinIneq;
 }

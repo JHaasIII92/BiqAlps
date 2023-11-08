@@ -6,6 +6,29 @@
 #include <array>
 #include <math.h>
 
+
+bool operator<(BiqTriInequality const &l, BiqTriInequality const &r)
+{
+    return l.value_ < r.value_;
+}
+
+int I(BiqTriTuple btt) 
+{
+    return std::get<0>(btt);
+}
+int J(BiqTriTuple btt) 
+{
+    return std::get<1>(btt);
+}
+int K(BiqTriTuple btt) 
+{
+    return std::get<2>(btt);
+}
+int TRI_TYPE(BiqTriTuple btt) 
+{
+    return std::get<3>(btt);
+}
+
 void FillSparseMatrix(Sparse& sMat, const double *pdData, int N)
 {
     int i = 0;

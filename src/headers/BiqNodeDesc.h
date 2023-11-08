@@ -2,13 +2,11 @@
 #define BiqNodeDesc_h_
 
 #include "AlpsNodeDesc.h"
+#include "BiqModel.h"
+#include "BiqUtil.h"
+#include <iostream>
 
 
-enum BiqVarStatus {
-    BiqVarFree = 0,
-    BiqVarFixedToOne,
-    BiqVarFixedToZero
-};
 
 class BiqModel;
 

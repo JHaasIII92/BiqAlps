@@ -5,6 +5,8 @@
 #include <list>
 #include <map>
 #include <tuple>
+#include <queue>
+#include <unordered_map>
 #define TRANSP 1
 #define NOTRANSP 0
 #define scaleEq 1.0
@@ -13,7 +15,11 @@
 #define mmax 10
 #define MAXITER 100
 
-
+enum BiqVarStatus {
+    BiqVarFree = 0,
+    BiqVarFixedToOne,
+    BiqVarFixedToZero
+};
 
 enum TriType
 {
@@ -51,33 +57,45 @@ class BiqTriInequality
 {
 public: 
   TriType type_;
+  int i_, j_, k_;
   double value_;
   double y_; // more discriptive name would be good
 
-  BiqTriInequality(TriType type, 
-                  double value, double y)
+  BiqTriInequality(TriType type, int i, int j, int k, double value, double y)
     : type_(type),
+      i_(i),
+      j_(j),
+      k_(k),
       value_(value),
       y_(y)
       {
       }
   BiqTriInequality()
-    : type_(ONE),
+     :type_(ONE),
+      i_(-1),
+      j_(-1),
+      k_(-1),
       value_(0),
       y_(0)
       {
       }
 
+      friend bool operator<(BiqTriInequality const &l, BiqTriInequality const &r);
+
 };
 
+
+
 using Sparse = std::vector<BiqSparseTriple>;
-using BiqTriTripple = std::tuple<int,int,int>;
-using TriCuts = std::map<BiqTriTripple, BiqTriInequality>;
+using BiqTriTuple = std::tuple<int,int,int,int>;
+using TriCuts = std::vector<BiqTriInequality>;
+using TriMap  = std::map<BiqTriTuple, bool>;
+using TriHeap = std::priority_queue<BiqTriInequality>;
 
-
-int I(BiqTriTripple btt) {return std::get<0>(btt);};
-int J(BiqTriTripple btt) {return std::get<1>(btt);};
-int K(BiqTriTripple btt) {return std::get<2>(btt);};
+int I(BiqTriTuple btt);
+int J(BiqTriTuple btt);
+int K(BiqTriTuple btt);
+int TRI_TYPE(BiqTriTuple btt);
 
 void FillSparseMatrix(Sparse& sMat, const double *pdData, int N);
 
@@ -89,8 +107,8 @@ void print_vector(double *vec, int N);
 
 void print_symmetric_matrix(double *Mat, int N);
 
-
-
+extern "C" int openblas_get_num_threads();
+extern "C" void openblas_set_num_threads(int n);
 extern "C" double dnrm2_(
         int &n, double *x, int &incx);
 

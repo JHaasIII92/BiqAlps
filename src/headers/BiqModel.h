@@ -11,7 +11,9 @@
 #include <utility>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <tuple>
+#include <queue>
 
 
 class BiqModel: public AlpsModel
@@ -55,12 +57,13 @@ private:
     double* pdTmp_sub_;
     double *pdTmpLinear_;
 
-    int nIneq_;                            // possibly do not need since this is the size of a std::vector
 
     /* Triangle Inequalitie variables */
     TriCuts Cuts_;
-    double dLeastViolatedIneq_;
-    BiqTriTripple bttLeastViolatedIneq_;
+    TriMap  Map_;
+    TriHeap Heap_;
+    int nIneq_;      // rename to nCuts_? 
+
     /* L-BFGS-B Data */
     double gradInorm_;
     double gradEnorm_;
@@ -141,11 +144,13 @@ private:
 
     int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
 
-    double UpdateInequalities();
+    double UpdateInequalities(int &nAdded, int &nSubtracted);
 
     double GetViolatedCuts();
 
     double EvalInequalities(TriType triType, int ii, int jj, int kk);
+
+    void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq/*double dTime*/);
 };
 
 #endif
