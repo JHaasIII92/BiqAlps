@@ -198,8 +198,8 @@ int nMaxIter = 30;
     for(int i = 0; i <= nMaxIter; ++i)
     {
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
-        dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
-        PrintBoundingTable(i, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
+        //dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
+        PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
 
         if(nAdded < nMinAdded)
         {
@@ -344,10 +344,10 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
             }
             gradInorm_ /= scaleIneq;
 
-            /*
-            std::printf("GradENorm = %f\n", gradEnorm_);
-            exit(0);
-            */
+            
+            //std::printf("GradENorm = %f\n", gradEnorm_);
+            //exit(0);
+            
 
             dBound = (max_problem_) ? f_  : - f_;
             bPrune = Prune(); 
@@ -420,6 +420,8 @@ void BiqModel::sim(double alpha)
 
     f_ += alpha * (0.5 * static_cast<double>(N2));
 
+    //print_vector(g_,mA_+mB_+nIneq_);
+    //exit(0);
     //print_symmetric_matrix(X_,N);
 }
 
@@ -447,7 +449,7 @@ void BiqModel::ProjSDP()
     NORM = 'F';
     double normfro = dlansy_(NORM, UPLO, N, X_, LDX, DWORK_);
 
-       // bornesup = min(norminf, normfro)
+    // bornesup = min(norminf, normfro)
     bornesup = (norminf < normfro) ? norminf : normfro;
 
     // Ensure that borneinf <= bornesup.
@@ -479,6 +481,13 @@ void BiqModel::ProjSDP()
     exit(0);
     */
     //std::printf("") /// print out each input // which dsyevr_ // is there any rng used??
+
+    /*
+    std::printf("N = %d\t VL = %f\t VU = %f\t nDWORK_ = %d\t nIWORK_ = %d\n",
+                 N, VL, VU, nDWORK_, nIWORK_);
+    exit(0);
+    */
+
     dsyevr_(JOBZ, RANGE, UPLO, N, X_, LDX, VL, VU, IL, IU, ABSTOL,
             M_, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
 
@@ -638,7 +647,7 @@ void BiqModel::A(int mode, double alpha)
                 }
             }
             g_[mB_ + ineqCon] *= dAlphaInv;
-            g_[mB_ + ineqCon] += a_[ineqCon];
+            g_[mB_ + ineqCon] += a_sub_[ineqCon];
             g_[mB_ + ineqCon] *= scaleIneq;
         }
 
@@ -647,8 +656,9 @@ void BiqModel::A(int mode, double alpha)
         
         for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
+            
             f_ += scaleIneq * y_[mB_ + mA_ + ineqCon];
-            //std::printf("Y =  %f\n", y_[mB_ + mA_ + ineqCon]);
+
             switch (it->type_)
             {
 
@@ -672,11 +682,14 @@ void BiqModel::A(int mode, double alpha)
                 dTemp = -X_[it->i_ + it->j_ * N] - X_[it->i_ + it->k_ * N] + X_[it->j_ + it->k_ * N];
             } break;
             }
-
+            /*
+            std::printf("i = %d  j = %d  k = %d type = %d\t  evaluated = %f\n", 
+                        it->i_, it->j_, it->k_, static_cast<int>(it->type_), dTemp);
+            */
             g_[mB_ + mA_ + ineqCon] = (dTemp * dAlphaInv + 1.0) * scaleIneq;
-
             ineqCon++;
         }
+        //if(nIneq_>0) exit(0);
     }
 }
 
@@ -724,13 +737,24 @@ void BiqModel::B(int mode, double alpha)
     }
     else
     {
+        std::vector<Sparse>::iterator itBs = Bs_sub_.begin();
+        
         for(int eqCon = 0; eqCon < mB_; ++eqCon)   
         {
             f_ +=  scaleEq * b_sub_[eqCon] * y_[eqCon];
 
             g_[eqCon] = 0.0;
-            for(auto& it: Bs_sub_[eqCon])
+            //PrintSparseMatrix(*itBs);
+            //std::printf("-----------\n");
+            for(auto &it : *itBs)
             {
+                if(it.dVal_ == 0) continue;
+
+                /*
+                std::printf("X = %f \t dval = %f \n",
+                            X_[it.i_ + it.j_ * N], it.dVal_);
+                */
+                
                 if(it.i_ == it.j_)
                 {
                     g_[eqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
@@ -743,6 +767,10 @@ void BiqModel::B(int mode, double alpha)
             g_[eqCon] *= dAlphaInv;
             g_[eqCon] += b_sub_[eqCon];
             g_[eqCon] *= scaleEq;
+
+            
+
+            ++itBs;
         }
     }
 
@@ -871,8 +899,8 @@ void BiqModel::BuildConstraints(int nRows,
         GetLinear(sMatArraySource.at(k), piSol, vbiqVarStatus, nFixed);
 
         //
-        dScaleFactor = 1.0;
-
+        //dScaleFactor = 1.0;
+        dScaleFactor = 1.0 / (1.0 + fabs(RHSsource[k]) + dCoefMatNorm); 
         RHSdest[k] =  RHSsource[k];
         // set itterator for fill
         sMatArraydest.at(k).resize(100);
