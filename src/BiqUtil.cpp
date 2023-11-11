@@ -69,13 +69,13 @@ void PrintSparseMatrix(Sparse sMat)
     std::printf("==========================\n");
 }
 
-void PrintMatrix(double * pdMat, size_t nRow, size_t nCol)
+void PrintMatrix(double * pdMat, int nRow, int nCol)
 {
-    size_t i = 0;
-    size_t j = 0;
+    int i = 0;
+    int j = 0;
     std::printf("BiqUtil PrintMatrix\n");
     std::printf("===============================================================\n");
-    for(size_t pos = 0; pos < nRow*nCol; ++pos)
+    for(int pos = 0; pos < nRow*nCol; ++pos)
     {
         std::printf("%8.2f ",pdMat[pos]);
         ++i;

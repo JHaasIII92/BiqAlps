@@ -62,11 +62,6 @@ ADDLIBS = -lopenblas  -lgfortran
 # CHANGEME: Additional flags for compilation (e.g., include flags)
 ADDINCFLAGS =
 
-# CHANGEME: Directory to the sources for the (example) problem definition
-# files
-SRCDIR = /home/james/Alps/examples/Biq
-VPATH = /home/james/Alps/examples/Biq
-
 ##########################################################################
 #  Usually, you don't have to change anything below.  Note that if you   #
 #  change certain compiler options, you might have to recompile the      #
@@ -83,15 +78,15 @@ FC = gfortran
 CXXFLAGS = -O2 -DNDEBUG 
 FFLAGS =   -O -Wall -fbounds-check -g -Wno-uninitialized
 # additional C++ Compiler options for linking
-CXXLINKFLAGS =  -Wl,--rpath -Wl,/home/james/dist/lib
+CXXLINKFLAGS =  -Wl,--rpath -Wl,/var/coin-or/dist/lib
 
 # Include directories (we use the CYGPATH_W variables to allow compilation with Windows compilers)
-INCL = `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --cflags alps`
+INCL = `PKG_CONFIG_PATH=/var/coin-or/dist/lib/pkgconfig: pkg-config --cflags alps`
 #INCL = -I${prefix}/include/coin-or
 INCL += $(ADDINCFLAGS)
 
 # Linker flags
-LIBS = `PKG_CONFIG_PATH=/home/james/dist/lib/pkgconfig: pkg-config --libs alps --static`
+LIBS = `PKG_CONFIG_PATH=/var/coin-or/dist/lib/pkgconfig: pkg-config --libs alps --static`
 #LIBS = -L${exec_prefix}/lib -lAlps -lCoinUtils
 LIBS += $(ADDLIBS)
 

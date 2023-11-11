@@ -101,7 +101,7 @@ void FillSparseMatrix(Sparse& sMat, const double *pdData, int N);
 
 void PrintSparseMatrix(std::vector<BiqSparseTriple> bstVec);
 
-void PrintMatrix(double * pdMat, size_t nRow, size_t nCol);
+void PrintMatrix(double * pdMat, int nRow, int nCol);
 
 void print_vector(double *vec, int N);
 
