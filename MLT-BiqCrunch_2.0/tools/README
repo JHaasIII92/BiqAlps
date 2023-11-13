@@ -1,0 +1,12 @@
+Before running these tests, make sure you already compiled the biqcrunch binaries (command make in the /src folder). Furthermore, the conversion scripts must be executable. If not : 
+
+    $ chmod +x name_of_executable 
+
+To compile and test the tools, run the following commands:
+
+    $ make
+    $ source tests.sh
+
+To clean the binaries and the output files, run the following command:  
+
+    $ make clean
