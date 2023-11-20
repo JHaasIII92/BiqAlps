@@ -86,6 +86,8 @@ private:
     int nDWORK_;
     int nIWORK_;
     int M_;
+
+    int *tempSol_;
     BiqModel(const BiqModel&);
     BiqModel& operator=(const BiqModel&);
     
@@ -108,6 +110,10 @@ public:
     double SDPbound();
 
     void CreateSubProblem();
+
+    bool isFeasibleSolution();
+
+    double primalHeuristic();
 
 private:
 
@@ -151,6 +157,8 @@ private:
     double EvalInequalities(TriType triType, int ii, int jj, int kk);
 
     void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq/*double dTime*/);
+
+
 };
 
 #endif

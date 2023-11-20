@@ -101,9 +101,9 @@ int main(int argc, char * argv[])
     std::printf("Now we are using %d blas threads\n", iBlasThreads);
     std::vector<Sparse> As;
     double *a = NULL;
-    std::vector<Sparse> Bs;
-    double *b = NULL;
-   /*
+    //std::vector<Sparse> Bs;
+    //double *b = NULL;
+   
    Sparse Bs_1 = { 
                      //some quad terms 
                     BiqSparseTriple(0, 0, 1),
@@ -115,8 +115,8 @@ int main(int argc, char * argv[])
                     BiqSparseTriple(nVar, 0, 1) 
                    };
     std::vector<Sparse> Bs = {Bs_1};
-    double b[1] = {3.14};
-    */    
+    double b[1] = {-14};
+
     //double *pQ = &Q
 
     // we are only constructing a model object for now

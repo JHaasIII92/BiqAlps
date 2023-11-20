@@ -77,7 +77,7 @@ BiqModel::BiqModel(
 
     wa_ = new double[wa_length];
     iwa_ = new int[iwa_length];
- 
+    
     AddDiagCons();
     AllocSubCons();
 
@@ -92,9 +92,11 @@ BiqModel::BiqModel(
     delete[] IWORK_SIZE;
     delete[] DWORK_SIZE;
 
-    CreateSubProblem();
+    tempSol_ = new int[nVar_];
+    //CreateSubProblem();
     //print_symmetric_matrix(Q_sub_, nVar_sub_+1);
-    SDPbound(); 
+    //SDPbound(); 
+    primalHeuristic();
 }
 
 BiqModel::~BiqModel()
@@ -119,6 +121,7 @@ BiqModel::~BiqModel()
     delete[] a_sub_;
     delete[] pdTmpLinear_;
     delete[] pdTmp_sub_;
+    delete[] tempSol_;
 }
 
 /// @brief 
@@ -138,6 +141,7 @@ void BiqModel::AddDiagCons()
 
     // size of Bs_ pre diag cons use to shift entires of b_
     int nCons = Bs_.size();
+
                                  //  i, j, dVal
     Sparse bstTemp = {BiqSparseTriple(0,0,1.0)};
     for(int i = 0; i < N_; ++i)
@@ -148,6 +152,7 @@ void BiqModel::AddDiagCons()
         // them push bstTemp to Bs_
         Bs_.push_back(bstTemp);
         b_[i + nCons] = 1.0;
+        //PrintSparseMatrix(bstTemp);
     }
 }
 
@@ -1335,4 +1340,99 @@ double BiqModel::EvalInequalities(TriType triType, int ii, int jj, int kk)
 
 
     return dRetIneqVal;
+}
+
+bool BiqModel::isFeasibleSolution()
+{
+
+    int m, i, j, k;
+    double dSum, dTmp;
+    bool bRet = true;
+    // convert to {1, -1}
+    for(i = 0; i < nVar_; ++i)
+    {
+        tempSol_[i] = 2*tempSol_[i] - 1;
+    } 
+
+    tempSol_[nVar_] = 1; 
+
+    // loop over equality cons of master problem;
+    i = 0;
+    for(auto &itCons : Bs_)
+    {
+        dSum  = 0;
+        for(auto &it : itCons)
+        {
+            dTmp = it.dVal_ * tempSol_[it.i_] * tempSol_[it.j_];
+            dSum += dTmp;
+            if(it.i_ != it.j_)
+            {
+                dSum += dTmp;
+            }
+        }
+
+        // check that the sum matches the rhs
+        if(dSum != b_[i])
+        {
+            bRet = false;
+            break;
+        }
+        ++i; 
+    }
+
+    // loop over inequality cons of master problem;
+    i = 0;
+    for(auto &itCons : As_)
+    {
+        dSum = 0.0;
+        for(auto &it : itCons)
+        {
+            dTmp = it.dVal_ * tempSol_[it.i_] * tempSol_[it.j_];
+            dSum += dTmp;
+            if(it.i_ != it.j_)
+            {
+                dSum += dTmp;
+            }
+        }
+
+        // check that the sum is grater than rhs
+        if(dSum > a_[i])
+        {
+            bRet = false;
+            break;
+        }
+        ++i; 
+    }
+
+
+
+
+    return bRet;
+}
+
+double BiqModel::primalHeuristic()
+{
+    double dRet = 0.0;
+    double gamma;
+    double dRand;
+    bool bTest;
+    for(gamma = 0.0; gamma < 1.0; gamma += 0.01)
+    {
+        for(int i = 0; i < nVar_; ++i)
+        {
+            dRand = ((double) rand() / (double) RAND_MAX);
+            if(dRand > gamma)
+            {
+                tempSol_[i] = 1;
+            }
+            else
+            {
+                tempSol_[i] = 0;
+            }
+        }
+        bTest = isFeasibleSolution();
+        std::printf("Do we have a solution?? %d\n", bTest);
+    }
+
+    return dRet;
 }
