@@ -111,10 +111,10 @@ public:
 
     void CreateSubProblem();
 
-    bool isFeasibleSolution();
+    double primalHeuristic(std::vector<int> soloution);
 
-    double primalHeuristic();
-
+    double GWheuristic(int nPlanes);
+    
 private:
 
     void AddDiagCons();
@@ -158,7 +158,9 @@ private:
 
     void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq/*double dTime*/);
 
+    bool isFeasibleSolution(std::vector<int> soloution);
 
+    double EvalSolution(std::vector<int> soloution);
 };
 
 #endif
