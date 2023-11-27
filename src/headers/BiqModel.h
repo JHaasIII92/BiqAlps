@@ -136,17 +136,17 @@ private:
     void BuildConstraints(int nRows,
                           double *pdRHSsource, std::vector<Sparse> sMatSource,
                           double *pdRHSdest,   std::vector<Sparse> &sMatdest,
-                          int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+                          std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     double GetSubMatrixSparse(Sparse sSourceMat, std::vector<BiqVarStatus> vbiqVarStatus, int & nnzAdded, int nFixed);
 
-    void BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+    void BuildObjective(std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     void GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    double GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus); 
+    double GetConstant(Sparse &sMat, std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus); 
 
-    void GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+    void GetLinear(Sparse &sSource, std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
 
