@@ -120,9 +120,29 @@ int main(int argc, char * argv[])
     double b[1] = {-14};
     */
     //double *pQ = &Q
+    bool max_prob = true;
 
     // we are only constructing a model object for now
-    BiqModel model(nVar, Q, 1, As, a, Bs, b);
-    //model.CreateSubProblem();
+    BiqModel model(nVar, Q, max_prob, As, a, Bs, b);
+    
+#ifdef COIN_HAS_MPI
+        AlpsKnowledgeBrokerMPI broker(argc, argv, model);
+#else
+        AlpsKnowledgeBrokerSerial broker(argc, argv, model);
+#endif
+
+    
+    broker.registerClass(AlpsKnowledgeTypeModel,new BiqModel());
+    broker.registerClass(AlpsKnowledgeTypeSolution,
+                             new BiqSolution(&model));
+    broker.registerClass(AlpsKnowledgeTypeNode, new BiqTreeNode(&model));
+    broker.search(&model);
+    //std::vector<BiqVarStatus> vbiqVarStatus;
+    //vbiqVarStatus.resize(model.getNVar(), BiqVarFree);
+    //model.CreateSubProblem(vbiqVarStatus);
+    //model.SDPbound();
+
+    std::printf("done\n");
+    
     return 0;
 }

@@ -5,6 +5,7 @@
 #include "AlpsModel.h"
 #include "BiqTreeNode.h"
 #include "BiqNodeDesc.h"
+#include "BiqSolution.h"
 #include "BiqUtil.h"
 #include "math.h"
 #include<iostream>
@@ -34,7 +35,7 @@ private:
     double *b_;                            // Right-hand-side equality constraints
     int mB_;                               // Number of equality constraints
                                  
-    int max_problem_;                      // Objective sense 
+    bool max_problem_;                      // Objective sense 
 
     /* sub model data*/
     double *X_;
@@ -92,8 +93,8 @@ private:
     BiqModel& operator=(const BiqModel&);
     
 public:
-    BiqModel() {}
-    BiqModel(int nVar, double *Q, int max_problem,
+    BiqModel(){InitEmptyModel();};
+    BiqModel(int nVar, double *Q, bool max_problem,
              std::vector<Sparse> As, double *a,
              std::vector<Sparse> Bs, double *b);
     ~BiqModel();
@@ -109,9 +110,9 @@ public:
 
     double SDPbound();
 
-    void CreateSubProblem();
+    void CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus);
 
-    double primalHeuristic(std::vector<int> soloution);
+    double primalHeuristic(std::vector<int> solution);
 
     double GWheuristic(int nPlanes);
     
@@ -136,17 +137,17 @@ private:
     void BuildConstraints(int nRows,
                           double *pdRHSsource, std::vector<Sparse> sMatSource,
                           double *pdRHSdest,   std::vector<Sparse> &sMatdest,
-                          std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+                          std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     double GetSubMatrixSparse(Sparse sSourceMat, std::vector<BiqVarStatus> vbiqVarStatus, int & nnzAdded, int nFixed);
 
-    void BuildObjective(std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+    void BuildObjective(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     void GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    double GetConstant(Sparse &sMat, std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus); 
+    double GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStatus); 
 
-    void GetLinear(Sparse &sSource, std::vector<int>, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+    void GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
 
@@ -158,9 +159,16 @@ private:
 
     void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq/*double dTime*/);
 
-    bool isFeasibleSolution(std::vector<int> soloution);
+    bool isFeasibleSolution(std::vector<int> solution);
 
-    double EvalSolution(std::vector<int> soloution);
+    double EvalSolution(std::vector<int> solution);
+
+    void UpdateSol(std::vector<int> solution);
+
+    void freeData(int *& data);
+    void freeData(double *& data);
+
+    void InitEmptyModel();
 };
 
 #endif

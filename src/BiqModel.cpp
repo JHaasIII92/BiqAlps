@@ -1,8 +1,9 @@
 #include "headers/BiqModel.h"
-
-
+#include "AlpsKnowledgeBroker.h"
+#include "AlpsKnowledge.h"
+#include "headers/BiqSolution.h"
 BiqModel::BiqModel(
-                int nVar, double *Q, int max_problem,
+                int nVar, double *Q, bool max_problem,
                 std::vector<Sparse> As, double *a,
                 std::vector<Sparse> Bs, double *b
    ) 
@@ -94,34 +95,136 @@ BiqModel::BiqModel(
 
     
 
-    CreateSubProblem();
-    SDPbound();
-    GWheuristic(20);
     
 }
 
 BiqModel::~BiqModel()
 {
+    std::printf("BiqModel::~BiqModel()\n");
     // TODO clean up and make sure this is safe
-    delete[] ISUPPZ_; 
-    delete[]  X_;
-    delete[]  W_;
-    delete[] Z_;
-    delete[]  g_; 
-    delete[]  y_ ;
-    delete[]  binf_;
-    delete[]  bsup_ ;
-    delete[]  nbd_ ;
-    delete[]  wa_ ;
-    delete[] iwa_;
-    delete[] DWORK_;
-    delete[] IWORK_;
-    delete[] a_;
-    delete[] b_;
-    delete[] b_sub_;
-    delete[] a_sub_;
-    delete[] pdTmpLinear_;
-    delete[] pdTmp_sub_;
+    if(ISUPPZ_)
+    {
+        delete[] ISUPPZ_;
+        ISUPPZ_ = NULL;
+    }
+    if(X_ )
+    {
+        delete[] X_ ;
+        X_  = NULL;
+    }
+    if(W_)
+    {
+        delete[] W_;
+        W_ = NULL;
+    }
+    if(Z_)
+    {
+        delete[] Z_;
+        Z_ = NULL;
+    }
+    if(DWORK_)
+    {
+        delete[] DWORK_;
+        DWORK_ = NULL;
+    }
+    if(IWORK_)
+    {
+        delete[] IWORK_;
+        IWORK_ = NULL;
+    }
+    if(a_)
+    {
+        delete[] a_;
+        a_ = NULL;
+    }
+    if(b_)
+    {
+        delete[] b_;
+        b_ = NULL;
+    }
+    if(a_sub_)
+    {
+        delete[] a_sub_;
+        a_sub_ = NULL;
+    }
+    if(b_sub_)
+    {
+        delete[] b_sub_;
+        b_sub_ = NULL;
+    }
+    if(Q_sub_)
+    {
+        delete[] Q_sub_;
+        Q_sub_ = NULL;
+    }
+    if(g_)
+    {
+        delete[] g_;
+        g_ = NULL;
+    }
+    if(y_)
+    {
+        delete[] y_;
+        y_ = NULL;
+    }
+    if(binf_)
+    {
+        delete[] binf_;
+        binf_ = NULL;
+    }
+    if(bsup_)
+    {
+        delete[] bsup_;
+        bsup_ = NULL;
+    }
+    if(nbd_)
+    {
+        delete[] nbd_;
+        nbd_ = NULL;
+    }
+    if(wa_)
+    {
+        delete[] wa_;
+        wa_ = NULL;
+    }
+    if(iwa_)
+    {
+        delete[] iwa_;
+        iwa_ = NULL;
+    }
+    if(pdTmp_sub_)
+    {
+        delete[] pdTmp_sub_;
+        pdTmp_sub_ = NULL;
+    }
+    if(pdTmpLinear_)
+    {
+        delete[] pdTmpLinear_;
+        pdTmpLinear_ = NULL;
+    }
+    std::printf("BiqModel::~BiqModel() done\n");
+}
+
+void BiqModel::freeData(int *& data)
+{
+    std::printf("BiqModel::freeData int\n");
+    if(data)
+    {
+        delete[] data;
+        data = NULL;
+    }
+  
+}
+
+void BiqModel::freeData(double *& data)
+{
+    std::printf("BiqModel::freeData double\n");
+    if(data)
+    {
+        delete[] data;
+        data = NULL;
+    }
+  
 }
 
 /// @brief 
@@ -129,6 +232,7 @@ BiqModel::~BiqModel()
 /// @return 
 AlpsKnowledge * BiqModel::decode(AlpsEncoded & encode) const
 {
+    std::printf("AlpsKnowledge * BiqModel::decode\n");
     std::cerr << "Not implemented!" << std::endl;
     throw std::exception();
 }
@@ -174,6 +278,7 @@ double BiqModel::SDPbound()
     int nbit = 0;
     int nAdded;
     int nSubtracted;
+    int nHeurRuns = 5;
     double dMinAllIneq;
     double dAlpha = 10;
     double dTol = 0.08;
@@ -199,16 +304,15 @@ int nMaxIter = 30;
     }
     
     sim(dAlpha);
-
     for(int i = 0; i <= nMaxIter; ++i)
     {
 
         // Call BFGS solver
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
 
-
-        
-        //dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
+        // run heur 
+        GWheuristic(nHeurRuns);
+        dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
         PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
 
         if(nAdded < nMinAdded)
@@ -223,7 +327,7 @@ int nMaxIter = 30;
 
 void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq /*double dTime*/)
 {
-    if(iter == 0)
+    if(iter == 1)
     {
         std::printf("======================================================================================\n");
         std::printf("%4s  %6s  %5s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %4s  %4s  %4s\n", 
@@ -798,39 +902,33 @@ bool BiqModel::Prune()
 
 
 /// @brief 
-void BiqModel::CreateSubProblem()
+void BiqModel::CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus)
 {
-    // temp data for building need to move ...
-    std::vector<BiqVarStatus> vbiqVarStatus;
-    vbiqVarStatus.resize(nVar_, BiqVarFree);
-    std::vector<int> solution;
-    solution.resize(nVar_, 0);
-
     int nFixed = GetOffset(vbiqVarStatus);
 
     nVar_sub_ = nVar_ - nFixed;
 
     BuildConstraints(mB_, b_, Bs_, b_sub_, Bs_sub_,
-                        solution, vbiqVarStatus, nFixed); 
+                        vbiqVarStatus, nFixed); 
 
 
     BuildConstraints(mA_, a_, As_, a_sub_, As_sub_,
-                        solution, vbiqVarStatus, nFixed); 
+                        vbiqVarStatus, nFixed); 
 
 
-    BuildObjective(solution, vbiqVarStatus, nFixed);
+    BuildObjective(vbiqVarStatus, nFixed);
 }
 
 
-void BiqModel::BuildObjective(std::vector<int> solution, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
+void BiqModel::BuildObjective(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int i, j;
     double dConstant;
     //
     GetSubMatrix(vbiqVarStatus, nFixed);
-    dConstant = GetConstant(Qs_, solution, vbiqVarStatus);
+    dConstant = GetConstant(Qs_, vbiqVarStatus);
     //
-    GetLinear(Qs_, solution, vbiqVarStatus, nFixed);
+    GetLinear(Qs_, vbiqVarStatus, nFixed);
 
     // Set constant
     //Q_sub_[nVar_sub_ + nVar_sub_*(nVar_sub_ + 1)] = Q_[nVar_ + nVar_*(nVar_ + 1)]; // original 
@@ -872,7 +970,7 @@ void BiqModel::BuildObjective(std::vector<int> solution, std::vector<BiqVarStatu
 void BiqModel::BuildConstraints(int nRows,
                                 double *RHSsource, std::vector<Sparse> sMatArraySource,
                                 double *RHSdest,   std::vector<Sparse> &sMatArraydest,
-                                std::vector<int> solution, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
+                                std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int nnzAdded;
     int i;
@@ -885,8 +983,8 @@ void BiqModel::BuildConstraints(int nRows,
     for(int k = 0; k < nRows; ++k)
     {
         dCoefMatNorm = GetSubMatrixSparse(sMatArraySource.at(k), vbiqVarStatus, nnzAdded, nFixed);
-        dConstant = GetConstant(sMatArraySource.at(k), solution, vbiqVarStatus);
-        GetLinear(sMatArraySource.at(k), solution, vbiqVarStatus, nFixed);
+        dConstant = GetConstant(sMatArraySource.at(k), vbiqVarStatus);
+        GetLinear(sMatArraySource.at(k), vbiqVarStatus, nFixed);
 
         //
         //dScaleFactor = 1.0;
@@ -1016,7 +1114,7 @@ double BiqModel::GetSubMatrixSparse(Sparse sSourceMat,
 /// @param solution 
 /// @param piFixed 
 /// @return 
-double BiqModel::GetConstant(Sparse &sMat, std::vector<int> solution, std::vector<BiqVarStatus> vbiqVarStatus)
+double BiqModel::GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStatus)
 {
     double dRetConst = 0.0;
     double dTmp;
@@ -1029,7 +1127,7 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<int> solution, std::vecto
         {
             if(vbiqVarStatus.at(it.i_) != BiqVarFree && vbiqVarStatus.at(it.j_) != BiqVarFree)
             {
-                dTmp = (2*solution.at(it.i_) - 1.0)*(2*solution.at(it.j_) - 1.0)*it.dVal_;
+                dTmp = (2*vbiqVarStatus.at(it.i_) - 1.0)*(2*vbiqVarStatus.at(it.j_) - 1.0)*it.dVal_;
                 dRetConst += dTmp;
                 if(it.i_ != it.j_)
                 {
@@ -1047,7 +1145,7 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<int> solution, std::vecto
         {
             if(vbiqVarStatus[it.i_] != BiqVarFree)
             {
-                dRetConst += (2*solution.at(it.i_)- 1.0)*2*it.dVal_;
+                dRetConst += (2*vbiqVarStatus.at(it.i_)- 1.0)*2*it.dVal_;
             }
         }
         // else if in the linear row
@@ -1055,7 +1153,7 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<int> solution, std::vecto
         {
             if(vbiqVarStatus[it.j_] != BiqVarFree)
             {
-                dRetConst += (2*solution.at(it.j_)- 1.0)*2*it.dVal_;
+                dRetConst += (2*vbiqVarStatus.at(it.j_)- 1.0)*2*it.dVal_;
             }
         }
     }
@@ -1063,7 +1161,7 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<int> solution, std::vecto
     return dRetConst;
 }
 
-void BiqModel::GetLinear(Sparse &sSource, std::vector<int> solution, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
+void BiqModel::GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     double dSum = 0.0;
     double dVal = 0.0;
@@ -1097,11 +1195,11 @@ void BiqModel::GetLinear(Sparse &sSource, std::vector<int> solution, std::vector
         {
             if(bIfree && !bJfree)
             {
-                pdTmpLinear_[ii - vOffset_.at(ii)] += (2 * solution.at(jj) - 1.0)*dVal;
+                pdTmpLinear_[ii - vOffset_.at(ii)] += (2 * vbiqVarStatus.at(jj) - 1.0)*dVal;
             }
             else if(!bIfree && bJfree)
             {
-                pdTmpLinear_[jj - vOffset_.at(jj)] += (2 * solution.at(ii) - 1.0)*dVal;
+                pdTmpLinear_[jj - vOffset_.at(jj)] += (2 * vbiqVarStatus.at(ii) - 1.0)*dVal;
             }
         }
 
@@ -1357,8 +1455,6 @@ double BiqModel::EvalSolution(std::vector<int> solution)
         }
     }
 
-    printf("The solution value is %f\n", dRetSol);
-    
     return dRetSol;
 }
 
@@ -1464,12 +1560,17 @@ double BiqModel::GWheuristic(int nPlanes)
     double dPlaneNorm;
     double dPlaneInvNorm;
     double sca;
+    double dTmpVal;
 
     int index;
+    int bestVal = 0;
 
     std::vector<double> hyperPlane;
     std::vector<int> solution_1;
     std::vector<int> solution_2;
+
+    
+
 
     hyperPlane.resize(M_);
     solution_1.resize(nVar_+1);
@@ -1547,30 +1648,69 @@ double BiqModel::GWheuristic(int nPlanes)
             }
 
         }
-        bSol1Feasible = isFeasibleSolution(solution_1);
-        bSol2Feasible = isFeasibleSolution(solution_2);
-
-        if(bSol1Feasible)
-        {   
-            std::printf("feasible solution found: \n");
-            std::printf("Objective value: %f \n",EvalSolution(solution_1));
-            for(auto &it: solution_1)
-            {
-                std::printf("\t %d\n", it);
-            }
-        }
-        if(bSol2Feasible)
-        {   
-            std::printf("feasible solution found: \n");
-            std::printf("Objective value: %f \n",EvalSolution(solution_2));
-            for(auto &it: solution_2)
-            {
-                std::printf("\t %d\n", it);
-            }
-        }
-
+        UpdateSol(solution_1);
+        UpdateSol(solution_2);
     }
 
 
     return dRetBest;
+}
+
+void BiqModel::UpdateSol(std::vector<int> solution)
+{
+    bool bIsfeasible;
+    // check if feasible
+    bIsfeasible = isFeasibleSolution(solution);
+    if(!bIsfeasible) return;
+    
+
+    int bestVal = 0;
+    double dTmpVal;
+
+    // The quality of a solution is the negative of the objective value
+    //  since Alps consideres sols with lower quality values better.
+    //bestVal = static_cast<int>(broker()->getIncumbentValue());
+    if(max_problem_)
+    {
+        bestVal = -bestVal;
+    }
+
+    dTmpVal = EvalSolution(solution);
+    //BiqSolution* biqSol = new BiqSolution( this, solution, dTmpVal);
+    if(max_problem_ && dTmpVal > bestVal)
+    {
+        //broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dTmpVal);
+    }
+    else if(!max_problem_ && dTmpVal < bestVal)
+    {     
+        //broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dTmpVal);
+    }   
+    else
+    {
+        /* do nothing*/
+    }
+}
+
+void BiqModel::InitEmptyModel()
+{
+    ISUPPZ_ = 0;
+    X_ = 0;
+    W_ = 0;
+    Z_ = 0;
+    DWORK_ = 0;
+    IWORK_ = 0;
+    a_ = 0;
+    b_ = 0;
+    b_sub_ = 0;
+    a_sub_ = 0;
+    Q_sub_ = 0;
+    g_ = 0;
+    y_ = 0; 
+    binf_ = 0;
+    bsup_ = 0; 
+    nbd_ = 0; 
+    wa_ = 0; 
+    iwa_ = 0;
+    pdTmpLinear_ = 0;
+    pdTmp_sub_ = 0;
 }

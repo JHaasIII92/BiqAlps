@@ -5,6 +5,10 @@
 
 #include "AlpsTreeNode.h"
 
+
+#include "AlpsKnowledgeBroker.h"
+#include "AlpsKnowledge.h"
+
 class BiqModel;
 class BiqNodeDesc;
 

@@ -16,9 +16,9 @@
 #define MAXITER 100
 
 enum BiqVarStatus {
-    BiqVarFree = 0,
-    BiqVarFixedToOne,
-    BiqVarFixedToZero
+    BiqVarFree = -1,
+    BiqVarFixedToOne = 1,
+    BiqVarFixedToZero = 0
 };
 
 enum TriType
