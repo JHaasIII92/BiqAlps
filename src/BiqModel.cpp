@@ -19,6 +19,7 @@ BiqModel::BiqModel(
     W_ = new double[N_];
     Z_ = new double[N_*N_];
 
+    
     /* DSYEVR optimal workspace query */
     M_ = 0;
     int INFO = 0;
@@ -93,138 +94,61 @@ BiqModel::BiqModel(
     delete[] IWORK_SIZE;
     delete[] DWORK_SIZE;
 
+    viSolution_1_.resize(N_);
+    viSolution_2_.resize(N_);
+    vdFracSol_.resize(nVar_);
     
+}
 
-    
+void BiqModel::InitEmptyModel()
+{
+    ISUPPZ_ = NULL;
+    X_ = NULL;
+    W_ = NULL;
+    Z_ = NULL;
+    DWORK_ = NULL;
+    IWORK_ = NULL;
+    a_ = NULL;
+    b_ = NULL;
+    b_sub_ = NULL;
+    a_sub_ = NULL;
+    Q_sub_ = NULL;
+    g_ = NULL;
+    y_ = NULL; 
+    binf_ = NULL;
+    bsup_ = NULL; 
+    nbd_ = NULL; 
+    wa_ = NULL; 
+    iwa_ = NULL;
+    pdTmpLinear_ = NULL;
+    pdTmp_sub_ = NULL;
 }
 
 BiqModel::~BiqModel()
 {
     std::printf("BiqModel::~BiqModel()\n");
     // TODO clean up and make sure this is safe
-    if(ISUPPZ_)
-    {
-        delete[] ISUPPZ_;
-        ISUPPZ_ = NULL;
-    }
-    if(X_ )
-    {
-        delete[] X_ ;
-        X_  = NULL;
-    }
-    if(W_)
-    {
-        delete[] W_;
-        W_ = NULL;
-    }
-    if(Z_)
-    {
-        delete[] Z_;
-        Z_ = NULL;
-    }
-    if(DWORK_)
-    {
-        delete[] DWORK_;
-        DWORK_ = NULL;
-    }
-    if(IWORK_)
-    {
-        delete[] IWORK_;
-        IWORK_ = NULL;
-    }
-    if(a_)
-    {
-        delete[] a_;
-        a_ = NULL;
-    }
-    if(b_)
-    {
-        delete[] b_;
-        b_ = NULL;
-    }
-    if(a_sub_)
-    {
-        delete[] a_sub_;
-        a_sub_ = NULL;
-    }
-    if(b_sub_)
-    {
-        delete[] b_sub_;
-        b_sub_ = NULL;
-    }
-    if(Q_sub_)
-    {
-        delete[] Q_sub_;
-        Q_sub_ = NULL;
-    }
-    if(g_)
-    {
-        delete[] g_;
-        g_ = NULL;
-    }
-    if(y_)
-    {
-        delete[] y_;
-        y_ = NULL;
-    }
-    if(binf_)
-    {
-        delete[] binf_;
-        binf_ = NULL;
-    }
-    if(bsup_)
-    {
-        delete[] bsup_;
-        bsup_ = NULL;
-    }
-    if(nbd_)
-    {
-        delete[] nbd_;
-        nbd_ = NULL;
-    }
-    if(wa_)
-    {
-        delete[] wa_;
-        wa_ = NULL;
-    }
-    if(iwa_)
-    {
-        delete[] iwa_;
-        iwa_ = NULL;
-    }
-    if(pdTmp_sub_)
-    {
-        delete[] pdTmp_sub_;
-        pdTmp_sub_ = NULL;
-    }
-    if(pdTmpLinear_)
-    {
-        delete[] pdTmpLinear_;
-        pdTmpLinear_ = NULL;
-    }
+    FREE_DATA(ISUPPZ_); 
+    FREE_DATA(X_);
+    FREE_DATA(W_);
+    FREE_DATA(Z_);
+    FREE_DATA(DWORK_);
+    FREE_DATA(IWORK_);
+    FREE_DATA(a_);
+    FREE_DATA(b_);
+    FREE_DATA(b_sub_);
+    FREE_DATA(a_sub_);
+    FREE_DATA(Q_sub_);
+    FREE_DATA(g_); 
+    FREE_DATA(y_);
+    FREE_DATA(binf_);
+    FREE_DATA(bsup_);
+    FREE_DATA(nbd_);
+    FREE_DATA(wa_);
+    FREE_DATA(iwa_);
+    FREE_DATA(pdTmpLinear_);
+    FREE_DATA(pdTmp_sub_);
     std::printf("BiqModel::~BiqModel() done\n");
-}
-
-void BiqModel::freeData(int *& data)
-{
-    std::printf("BiqModel::freeData int\n");
-    if(data)
-    {
-        delete[] data;
-        data = NULL;
-    }
-  
-}
-
-void BiqModel::freeData(double *& data)
-{
-    std::printf("BiqModel::freeData double\n");
-    if(data)
-    {
-        delete[] data;
-        data = NULL;
-    }
-  
 }
 
 /// @brief 
@@ -286,7 +210,7 @@ double BiqModel::SDPbound()
     int len_y = mA_ + mB_ + nIneq_;
     // param
     int nMinAdded = 50;
-int nMaxIter = 30;
+    int nMaxIter = 30;
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
 
@@ -311,8 +235,8 @@ int nMaxIter = 30;
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
 
         // run heur 
-        GWheuristic(nHeurRuns);
-        dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
+        //GWheuristic(nHeurRuns);
+        //dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
         PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
 
         if(nAdded < nMinAdded)
@@ -321,6 +245,8 @@ int nMaxIter = 30;
                 dTol *= dScaleTol;
         }
     }
+
+    dRetBound = (max_problem_) ? f_ : -f_;
     
     return dRetBound;
 }
@@ -1118,16 +1044,20 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStat
 {
     double dRetConst = 0.0;
     double dTmp;
-
+    double dSolVal_i;
+    double dSolVal_j;
     for(auto &it : sMat)
     {
 
         // if in the quad part
         if(it.i_ < nVar_ && it.j_ < nVar_)
         {
+            dSolVal_i = static_cast<double>(vbiqVarStatus.at(it.i_));
+            dSolVal_j = static_cast<double>(vbiqVarStatus.at(it.j_));
             if(vbiqVarStatus.at(it.i_) != BiqVarFree && vbiqVarStatus.at(it.j_) != BiqVarFree)
             {
-                dTmp = (2*vbiqVarStatus.at(it.i_) - 1.0)*(2*vbiqVarStatus.at(it.j_) - 1.0)*it.dVal_;
+
+                dTmp = (2*dSolVal_i - 1.0)*(2*dSolVal_j - 1.0)*it.dVal_;
                 dRetConst += dTmp;
                 if(it.i_ != it.j_)
                 {
@@ -1145,7 +1075,8 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStat
         {
             if(vbiqVarStatus[it.i_] != BiqVarFree)
             {
-                dRetConst += (2*vbiqVarStatus.at(it.i_)- 1.0)*2*it.dVal_;
+                dSolVal_i = static_cast<double>(vbiqVarStatus.at(it.i_));
+                dRetConst += (2*dSolVal_i- 1.0)*2*it.dVal_;
             }
         }
         // else if in the linear row
@@ -1153,7 +1084,8 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStat
         {
             if(vbiqVarStatus[it.j_] != BiqVarFree)
             {
-                dRetConst += (2*vbiqVarStatus.at(it.j_)- 1.0)*2*it.dVal_;
+                dSolVal_j = static_cast<double>(vbiqVarStatus.at(it.j_));
+                dRetConst += (2*dSolVal_j- 1.0)*2*it.dVal_;
             }
         }
     }
@@ -1165,6 +1097,8 @@ void BiqModel::GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatu
 {
     double dSum = 0.0;
     double dVal = 0.0;
+    double dSolVal_i;
+    double dSolVal_j;
     int ii, jj, pos = 0;
     bool bIfree, bJfree;
     
@@ -1178,6 +1112,7 @@ void BiqModel::GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatu
         ii = itSource.i_;
         jj = itSource.j_;
         dVal = itSource.dVal_;
+        
 
         bIfree = vbiqVarStatus[ii] == BiqVarFree;
         bJfree = vbiqVarStatus[jj] == BiqVarFree;  
@@ -1195,11 +1130,13 @@ void BiqModel::GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatu
         {
             if(bIfree && !bJfree)
             {
-                pdTmpLinear_[ii - vOffset_.at(ii)] += (2 * vbiqVarStatus.at(jj) - 1.0)*dVal;
+                dSolVal_j = static_cast<double>(vbiqVarStatus.at(jj));
+                pdTmpLinear_[ii - vOffset_.at(ii)] += (2 * dSolVal_j - 1.0)*dVal;
             }
             else if(!bIfree && bJfree)
             {
-                pdTmpLinear_[jj - vOffset_.at(jj)] += (2 * vbiqVarStatus.at(ii) - 1.0)*dVal;
+                dSolVal_i = static_cast<double>(vbiqVarStatus.at(ii));
+                pdTmpLinear_[jj - vOffset_.at(jj)] += (2 * dSolVal_i - 1.0)*dVal;
             }
         }
 
@@ -1521,9 +1458,6 @@ bool BiqModel::isFeasibleSolution(std::vector<int> solution)
         ++i; 
     }
 
-
-
-
     return bRet;
 }
 
@@ -1566,18 +1500,11 @@ double BiqModel::GWheuristic(int nPlanes)
     int bestVal = 0;
 
     std::vector<double> hyperPlane;
-    std::vector<int> solution_1;
-    std::vector<int> solution_2;
-
-    
-
 
     hyperPlane.resize(M_);
-    solution_1.resize(nVar_+1);
-    solution_2.resize(nVar_+1);
 
-    solution_1.at(nVar_) = 1;
-    solution_2.at(nVar_) = 1;
+    viSolution_1_.at(nVar_) = 1;
+    viSolution_2_.at(nVar_) = 1;
 
     // temp have a solutin vector
     std::vector<BiqVarStatus> vbiqVarStatus;
@@ -1611,14 +1538,14 @@ double BiqModel::GWheuristic(int nPlanes)
             {
             case BiqVarFixedToOne:
             {
-                solution_1.at(i) = 1;
-                solution_2.at(i) = 1;
+                viSolution_1_.at(i) = 1;
+                viSolution_2_.at(i) = 1;
             }break;
 
             case BiqVarFixedToZero:
             {
-                solution_1.at(i) = 0;
-                solution_2.at(i) = 0;
+                viSolution_1_.at(i) = 0;
+                viSolution_2_.at(i) = 0;
             }break;
 
             case BiqVarFree:
@@ -1630,13 +1557,13 @@ double BiqModel::GWheuristic(int nPlanes)
                 }
                 if(sca < 0)
                 {
-                    solution_1.at(i) = 0;
-                    solution_2.at(i) = 1;
+                    viSolution_1_.at(i) = 0;
+                    viSolution_2_.at(i) = 1;
                 }
                 else
                 {
-                    solution_1.at(i) = 1;
-                    solution_2.at(i) = 0;  
+                    viSolution_1_.at(i) = 1;
+                    viSolution_2_.at(i) = 0;  
                 }
 
                 ++index;
@@ -1648,8 +1575,8 @@ double BiqModel::GWheuristic(int nPlanes)
             }
 
         }
-        UpdateSol(solution_1);
-        UpdateSol(solution_2);
+        UpdateSol(viSolution_1_);
+        UpdateSol(viSolution_2_);
     }
 
 
@@ -1669,21 +1596,21 @@ void BiqModel::UpdateSol(std::vector<int> solution)
 
     // The quality of a solution is the negative of the objective value
     //  since Alps consideres sols with lower quality values better.
-    //bestVal = static_cast<int>(broker()->getIncumbentValue());
+    bestVal = static_cast<int>(broker()->getIncumbentValue());
     if(max_problem_)
     {
         bestVal = -bestVal;
     }
 
     dTmpVal = EvalSolution(solution);
-    //BiqSolution* biqSol = new BiqSolution( this, solution, dTmpVal);
+    BiqSolution* biqSol = new BiqSolution( this, solution, dTmpVal);
     if(max_problem_ && dTmpVal > bestVal)
     {
-        //broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dTmpVal);
+        broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dTmpVal);
     }
     else if(!max_problem_ && dTmpVal < bestVal)
     {     
-        //broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dTmpVal);
+        broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dTmpVal);
     }   
     else
     {
@@ -1691,26 +1618,34 @@ void BiqModel::UpdateSol(std::vector<int> solution)
     }
 }
 
-void BiqModel::InitEmptyModel()
+std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus)
 {
-    ISUPPZ_ = 0;
-    X_ = 0;
-    W_ = 0;
-    Z_ = 0;
-    DWORK_ = 0;
-    IWORK_ = 0;
-    a_ = 0;
-    b_ = 0;
-    b_sub_ = 0;
-    a_sub_ = 0;
-    Q_sub_ = 0;
-    g_ = 0;
-    y_ = 0; 
-    binf_ = 0;
-    bsup_ = 0; 
-    nbd_ = 0; 
-    wa_ = 0; 
-    iwa_ = 0;
-    pdTmpLinear_ = 0;
-    pdTmp_sub_ = 0;
+    int nFixed = GetOffset(vbiqVarStatus);
+    int ii, jj;
+    double Xij;
+
+    // Get Last row of X_ 
+    for(int i = 0; i < nVar_; ++i)
+    {
+        if(vbiqVarStatus.at(i) == BiqVarFree)
+        {
+            ii = nVar_sub_;
+            jj = i - vOffset_.at(i);
+            Xij = X_[ii + jj * (nVar_sub_ + 1)];
+            vdFracSol_.at(i) = (Xij + 1)/2;
+            //std::printf("X_[%d, %d] = %f\n", ii, jj, Xij);
+        }
+        else
+        {
+            vdFracSol_.at(i) = static_cast<double>(vbiqVarStatus.at(i));
+        }
+    }
+
+    // print vdFracSol_
+    for(auto &it: vdFracSol_)
+    {
+        std::printf("%f\n", it);
+    }
+
+    return vdFracSol_;
 }

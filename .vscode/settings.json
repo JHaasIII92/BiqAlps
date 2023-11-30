@@ -1,5 +1,15 @@
 {
     "files.associations": {
+        "*.rmd": "markdown",
+        "windows.h": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c",
+        "LINGO_MEX.C": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "LINGO_MEX copy.C": "cpp",
+        "LINGO_MEX_heap_try.C": "cpp",
         "vector": "cpp",
         "array": "cpp",
         "atomic": "cpp",
@@ -50,6 +60,9 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "typeinfo": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "numbers": "cpp"
     }
 }

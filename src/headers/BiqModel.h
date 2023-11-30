@@ -88,7 +88,10 @@ private:
     int nIWORK_;
     int M_;
 
-    int *tempSol_;
+    std::vector<int> viSolution_1_;
+    std::vector<int> viSolution_2_;
+    std::vector<double> vdFracSol_;
+
     BiqModel(const BiqModel&);
     BiqModel& operator=(const BiqModel&);
     
@@ -106,6 +109,7 @@ public:
     inline int getNVar() const { return nVar_;}
     inline void setNVar( int nVar) { nVar_ = nVar;}
 
+    inline bool isMax() const { return max_problem_;}
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
 
     double SDPbound();
@@ -116,6 +120,7 @@ public:
 
     double GWheuristic(int nPlanes);
     
+    std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);
 private:
 
     void AddDiagCons();

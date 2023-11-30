@@ -15,6 +15,13 @@
 #define mmax 10
 #define MAXITER 100
 
+#define FREE_DATA(data)\
+    if(data)\
+    {\
+        delete[] data;\
+        data = NULL;\
+    }
+
 enum BiqVarStatus {
     BiqVarFree = -1,
     BiqVarFixedToOne = 1,

@@ -3,12 +3,12 @@
         {
             "name": "Linux",
             "includePath": [
-                "/home/james/Alps/src/**",
+                "/var/coin-or/Alps/src/**",
                 "${workspaceFolder}/**",
                 "./src/headers"
             ],
             "defines": [
-                "/home/james/Alps/src/**",
+                "/var/coin-or/Alps/src/**",
                 "./src/headers"
             ],
             "compilerPath": "/usr/bin/gcc",
