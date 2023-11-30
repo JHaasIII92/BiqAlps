@@ -15,14 +15,11 @@
 
 BiqTreeNode::BiqTreeNode(BiqModel * model)
 {    
-    std::cout << "BiqTreeNode(BiqModel * model) ..." << std::endl;
     desc_ = new BiqNodeDesc(model); // make biq
 }
 
 BiqTreeNode::BiqTreeNode(BiqNodeDesc *& desc)
 {
-    std::cout << "BiqTreeNode::BiqTreeNode(BiqNodeDesc *& desc) ..." << std::endl;
-    std::cout << "BiqTreeNode::BiqTreeNode ... desc->varStatus_[0] = " << desc->getVarStatus(0) << " ... " << std::endl;
     desc_ = desc;
     desc = 0;
 }
@@ -62,12 +59,19 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
 
     // get the best solution so far (for parallel, it is the incumbent)
     int bestVal = static_cast<int>(broker()->getIncumbentValue());
-    std::printf("bestVal = %d\n", bestVal);
-    
+
     // build sub prob
     const std::vector<BiqVarStatus> biqVarStatus = desc->getVarStati();
 
     model->CreateSubProblem(biqVarStatus);
+
+    // check all variables ar fixed..
+    int nFixed = 0;
+    for(int i = 0; i < biqVarStatus.end()-biqVarStatus.begin();++i)
+    {
+        if(biqVarStatus.at(i) != BiqVarFree) ++nFixed;
+    }
+    //if(nFixed == model->getNVar)
 
 
     // call bounding 
@@ -82,9 +86,6 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
         bestVal = -bestVal;
     }
 
-    std::printf("valRelax = %f\n", valRelax);
-    std::printf("bestVal = %d\n", bestVal);
-
     if(
         ( bmaxProblem && static_cast<int>(floor(valRelax)) <= bestVal) || 
         (!bmaxProblem && static_cast<int>(ceil(valRelax))  >= bestVal)
@@ -94,11 +95,10 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     }
     else
     {
-        // determine variable to branch on
-        // using vdFracSol
+        // determine variable to branch on using vdFracSol
         SetBranchingVariable(vdFracSol, biqVarStatus);
         //setStatus(AlpsNodeStatusPregnant);
-        setStatus(AlpsNodeStatusFathomed);
+        setStatus(AlpsNodeStatusPregnant);
     }
 
     //setStatus(AlpsNodeStatusFathomed);
@@ -109,9 +109,6 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
 
 std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::branch()
 {
-
-    std::cout << "BiqTreeNode::branch index_ " << index_ << std::endl;
-
     // get a pointer to out desc class
     BiqNodeDesc * desc = dynamic_cast<BiqNodeDesc *>(desc_);
     // get a pointer to out model class
@@ -150,18 +147,6 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
     double dMaxVal = -INFINITY;
     branchOn_ = 0;
 
-    /*
-        if (params.branchingStrategy == LEAST_FRACTIONAL) {
-        // Branch on the variable x[ic] that has the least fractional value
-        maxValue = -BIG_NUMBER;
-        for (i = 0; i < BobPbSize; i++) {
-            if (!(Nodp->xfixed[i]) && fabs(0.5 - Nodp->fracsol[i]) > maxValue) {
-                ic = i;
-                maxValue = fabs(0.5 - Nodp->fracsol[ic]);
-            }
-        }
-    }
-    */
    for(int i = 0; i < fracSol.size(); ++i)
    {
         if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) > dMaxVal)

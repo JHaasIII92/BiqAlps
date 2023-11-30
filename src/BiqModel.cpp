@@ -126,7 +126,6 @@ void BiqModel::InitEmptyModel()
 
 BiqModel::~BiqModel()
 {
-    std::printf("BiqModel::~BiqModel()\n");
     // TODO clean up and make sure this is safe
     FREE_DATA(ISUPPZ_); 
     FREE_DATA(X_);
@@ -148,7 +147,6 @@ BiqModel::~BiqModel()
     FREE_DATA(iwa_);
     FREE_DATA(pdTmpLinear_);
     FREE_DATA(pdTmp_sub_);
-    std::printf("BiqModel::~BiqModel() done\n");
 }
 
 /// @brief 
@@ -202,7 +200,7 @@ double BiqModel::SDPbound()
     int nbit = 0;
     int nAdded;
     int nSubtracted;
-    int nHeurRuns = 5;
+    int nHeurRuns = 25;
     double dMinAllIneq;
     double dAlpha = 10;
     double dTol = 0.08;
@@ -210,7 +208,7 @@ double BiqModel::SDPbound()
     int len_y = mA_ + mB_ + nIneq_;
     // param
     int nMinAdded = 50;
-    int nMaxIter = 30;
+    int nMaxIter = 300;
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
 
@@ -218,7 +216,6 @@ double BiqModel::SDPbound()
     if(nVar_sub_ == 0)
     {
         dRetBound = Q_sub_[0];
-        std::printf("N = 1: returning bound = %.1f\n", dRetBound); // TODO fprintf output
         return dRetBound;
     }
 
@@ -235,9 +232,9 @@ double BiqModel::SDPbound()
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
 
         // run heur 
-        //GWheuristic(nHeurRuns);
-        //dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
-        PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
+        GWheuristic(nHeurRuns);
+        dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
+        //PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
 
         if(nAdded < nMinAdded)
         {
@@ -303,7 +300,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     double dMinTemp;
     double dBound;
     char task[60];
-    int iprint = -1;
+    int iprint = -10;
     char csave[60];
     int lsave[4];
     int isave[44];
@@ -354,13 +351,6 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
            // L-BFGS-B requesting new f and g
            sim(dAlpha);
            ++nbit; 
-
-           /*
-           std::printf("f = %f\n",f_);
-           std::printf("=====\n");
-           print_vector(g_, len_y);
-           exit(0);
-           */
         }
         else if(strncmp(task, "NEW_X", 5) == 0)
         {
@@ -383,11 +373,6 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
                 gradInorm_ = (gradInorm_ < fabs(dMinTemp)) ? fabs(dMinTemp) : gradInorm_;
             }
             gradInorm_ /= scaleIneq;
-
-            
-            //std::printf("GradENorm = %f\n", gradEnorm_);
-            //exit(0);
-            
 
             dBound = (max_problem_) ? f_  : - f_;
             bPrune = Prune(); 
@@ -422,7 +407,6 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     int NM = N * M_;
     int incz = 1;
     dscal_(NM, sca, Z_, incz); 
-    //std::printf("LBFGSB bound = %f\n", dBound);
     return retStatus;
 }
 
@@ -445,14 +429,8 @@ void BiqModel::sim(double alpha)
     A(TRANSP, alpha);
     ProjSDP();
 
-    //std::printf("After ProjSdp f_ = %f\n", f_);
 
     f_ = f_ * 1000.0 * (dAlphaInv / 1000.0); // TODO see what happens 
-
-    /*
-    print_symmetric_matrix(X_, N);
-    exit(0);
-    */
 
     // call the A and B methods not transposed
     B(NOTRANSP, alpha);
@@ -515,19 +493,6 @@ void BiqModel::ProjSDP()
     int LDZ = N;
     int INFO;
 
-    /*
-    std::printf("Printing X_..\n");
-    print_symmetric_matrix(X_,N);
-    exit(0);
-    */
-    //std::printf("") /// print out each input // which dsyevr_ // is there any rng used??
-
-    /*
-    std::printf("N = %d\t VL = %f\t VU = %f\t nDWORK_ = %d\t nIWORK_ = %d\n",
-                 N, VL, VU, nDWORK_, nIWORK_);
-    exit(0);
-    */
-
     dsyevr_(JOBZ, RANGE, UPLO, N, X_, LDX, VL, VU, IL, IU, ABSTOL,
             M_, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
 
@@ -546,12 +511,6 @@ void BiqModel::ProjSDP()
         }
     }
 
-    /*
-    std::printf("N = %d \t M = %d\n", N, M_);
-    print_vector(Z_, N*M_);
-    exit(0);
-    */
-
     // Compute ff = 0.5*||X_+||^2 = 0.5*||W||^2
     int INCW = 1;
     double normW = dnrm2_(M_, W_, INCW);
@@ -564,13 +523,6 @@ void BiqModel::ProjSDP()
         temp = sqrt(W_[j]);
         dscal_(N, temp, Z_ + j*N, INCZ);
     }
-
-    /*
-    std::printf("Eigen Values\n");
-    print_vector(W_, M_);
-    std::printf("=====\n");
-    exit(0);
-    */
 
     char TRANS = 'N';
     double ALPHA = 1.0;
@@ -722,10 +674,7 @@ void BiqModel::A(int mode, double alpha)
                 dTemp = -X_[it->i_ + it->j_ * N] - X_[it->i_ + it->k_ * N] + X_[it->j_ + it->k_ * N];
             } break;
             }
-            /*
-            std::printf("i = %d  j = %d  k = %d type = %d\t  evaluated = %f\n", 
-                        it->i_, it->j_, it->k_, static_cast<int>(it->type_), dTemp);
-            */
+
             g_[mB_ + mA_ + ineqCon] = (dTemp * dAlphaInv + 1.0) * scaleIneq;
             ineqCon++;
         }
@@ -784,17 +733,11 @@ void BiqModel::B(int mode, double alpha)
             f_ +=  scaleEq * b_sub_[eqCon] * y_[eqCon];
 
             g_[eqCon] = 0.0;
-            //PrintSparseMatrix(*itBs);
-            //std::printf("-----------\n");
+
             for(auto &it : *itBs)
             {
                 if(it.dVal_ == 0) continue;
 
-                /*
-                std::printf("X = %f \t dval = %f \n",
-                            X_[it.i_ + it.j_ * N], it.dVal_);
-                */
-                
                 if(it.i_ == it.j_)
                 {
                     g_[eqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
@@ -843,6 +786,7 @@ void BiqModel::CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus)
 
 
     BuildObjective(vbiqVarStatus, nFixed);
+
 }
 
 
@@ -1205,7 +1149,6 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     {
         // get least violated cut
         btiTemp = Heap_.top();
-        //std::printf("Cut[%d, %d, %d] \t value = %f \t type = %d\n", btiTemp.i_, btiTemp.j_, btiTemp.k_, btiTemp.value_, btiTemp.type_);
         Heap_.pop();
         if(itNextIneq != Cuts_.end())
         {
@@ -1253,7 +1196,6 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     // TODO need to update the dual variable on each cut
     // update the number of inequalites
     nIneq_ = nIneq_ - nSubtracted + nAdded;
-    //std::printf("Added: %d \t Subtracted: %d \t nIneq = %d\n",nAdded, nSubtracted, nIneq_);
     return dRetVal;
 }
 
@@ -1482,7 +1424,6 @@ double BiqModel::primalHeuristic(std::vector<int> solution)
             }
         }
         bTest = isFeasibleSolution(solution);
-        std::printf("Do we have a solution?? %d\n", bTest);
     }
 
     return dRet;
@@ -1633,18 +1574,11 @@ std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vb
             jj = i - vOffset_.at(i);
             Xij = X_[ii + jj * (nVar_sub_ + 1)];
             vdFracSol_.at(i) = (Xij + 1)/2;
-            //std::printf("X_[%d, %d] = %f\n", ii, jj, Xij);
         }
         else
         {
             vdFracSol_.at(i) = static_cast<double>(vbiqVarStatus.at(i));
         }
-    }
-
-    // print vdFracSol_
-    for(auto &it: vdFracSol_)
-    {
-        std::printf("%f\n", it);
     }
 
     return vdFracSol_;
