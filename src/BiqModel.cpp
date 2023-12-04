@@ -201,11 +201,14 @@ double BiqModel::SDPbound()
     int nAdded;
     int nSubtracted;
     int nHeurRuns = 25;
+    int len_y = mA_ + mB_ + nIneq_;
+
     double dMinAllIneq;
     double dAlpha = 10;
     double dTol = 0.08;
     double dRetBound = 0.0;
-    int len_y = mA_ + mB_ + nIneq_;
+    
+    bool prune = false;
     // param
     int nMinAdded = 50;
     int nMaxIter = 300;
@@ -225,24 +228,33 @@ double BiqModel::SDPbound()
     }
     
     sim(dAlpha);
-    for(int i = 0; i <= nMaxIter; ++i)
+    for(i = 0; i <= nMaxIter; ++i)
     {
 
         // Call BFGS solver
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
+        dRetBound = (max_problem_) ? f_ : -f_;
 
-        // run heur 
         GWheuristic(nHeurRuns);
+        prune = pruneTest(dRetBound);
+        
         dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
         //PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
 
+        // check if we are done
+        if(prune || iStatus == -1)
+        {
+            break;
+        }
+        // update parameters
         if(nAdded < nMinAdded)
         {
                 dAlpha *= dScaleAlpha;
                 dTol *= dScaleTol;
         }
-    }
 
+
+    }
     dRetBound = (max_problem_) ? f_ : -f_;
     
     return dRetBound;
@@ -375,7 +387,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
             gradInorm_ /= scaleIneq;
 
             dBound = (max_problem_) ? f_  : - f_;
-            bPrune = Prune(); 
+            bPrune = pruneTest(dBound);
 
             if(bPrune
                || (gradEnorm_ < dTol && gradInorm_ < dTol)
@@ -758,17 +770,6 @@ void BiqModel::B(int mode, double alpha)
     }
 
 }
-
-
-/// @brief 
-/// @return 
-bool BiqModel::Prune()
-{
-    // TODO add the Prune method
-
-    return false;
-}
-
 
 /// @brief 
 void BiqModel::CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus)
@@ -1403,7 +1404,7 @@ bool BiqModel::isFeasibleSolution(std::vector<int> solution)
     return bRet;
 }
 
-double BiqModel::primalHeuristic(std::vector<int> solution)
+double BiqModel::primalHeuristic()
 {
     double dRet = 0.0;
     double gamma;
@@ -1411,7 +1412,7 @@ double BiqModel::primalHeuristic(std::vector<int> solution)
     bool bTest;
     for(gamma = 0.0; gamma < 1.0; gamma += 0.01)
     {
-        for(auto &it: solution)
+        for(auto &it: viSolution_1_)
         {
             dRand = ((double) rand() / (double) RAND_MAX);
             if(dRand > gamma)
@@ -1423,7 +1424,7 @@ double BiqModel::primalHeuristic(std::vector<int> solution)
                 it = 0;
             }
         }
-        bTest = isFeasibleSolution(solution);
+        bTest = isFeasibleSolution(viSolution_1_);
     }
 
     return dRet;
@@ -1582,4 +1583,30 @@ std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vb
     }
 
     return vdFracSol_;
+}
+
+
+bool BiqModel::pruneTest(double dBound)
+{
+    bool bRet = false;
+    int bestVal = static_cast<int>(broker()->getIncumbentValue());
+    if(max_problem_)
+    {
+        bestVal = -bestVal;
+    }
+
+
+
+    if(
+        bestVal < -INT32_MAX &&
+        (
+        (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
+        (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal)
+        )
+      )
+    {
+        bRet = true;
+    }
+    
+    return bRet;
 }
