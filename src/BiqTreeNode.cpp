@@ -57,17 +57,23 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     
     bmaxProblem = model->isMax();
 
+    const std::vector<BiqVarStatus> biqVarStatus = desc->getVarStati();
+    
+    if(isRoot)
+    {
+        // try the brute force heuristic 
+        model->primalHeuristic();
+    }
+
     // get the best solution so far (for parallel, it is the incumbent)
     int bestVal = static_cast<int>(broker()->getIncumbentValue());
 
     // build sub prob
-    const std::vector<BiqVarStatus> biqVarStatus = desc->getVarStati();
-
     model->CreateSubProblem(biqVarStatus);
 
     // check all variables ar fixed..
     int nFixed = 0;
-    for(int i = 0; i < biqVarStatus.end()-biqVarStatus.begin();++i)
+    for(int i = 0; i < biqVarStatus.size();++i)
     {
         if(biqVarStatus.at(i) != BiqVarFree) ++nFixed;
     }
@@ -88,9 +94,11 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
 
     if(
         ( bmaxProblem && static_cast<int>(floor(valRelax)) <= bestVal) || 
-        (!bmaxProblem && static_cast<int>(ceil(valRelax))  >= bestVal)
+        (!bmaxProblem && static_cast<int>(ceil(valRelax))  >= bestVal) ||
+        nFixed ==  model->getNVar()
       )
     {
+        //std::printf("This node is being fathomed\n");
         setStatus(AlpsNodeStatusFathomed);
     }
     else
@@ -149,12 +157,11 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
 
    for(int i = 0; i < fracSol.size(); ++i)
    {
+        //std::printf("%d =>\t %f \t %f\n", i, fracSol.at(i), fabs(0.5 - fracSol.at(i)));
         if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) > dMaxVal)
         {
             branchOn_ = i;
             dMaxVal = fabs(0.5 - fracSol.at(i));
         }
    }
-
-
 }

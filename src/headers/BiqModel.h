@@ -116,7 +116,7 @@ public:
 
     void CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus);
 
-    double primalHeuristic(std::vector<int> solution);
+    double primalHeuristic();
 
     double GWheuristic(int nPlanes);
     
@@ -136,9 +136,7 @@ private:
     void A(int mode, double alpha);
 
     void B(int mode, double alpha);
-    
-    bool Prune();
-    
+     
     void BuildConstraints(int nRows,
                           double *pdRHSsource, std::vector<Sparse> sMatSource,
                           double *pdRHSdest,   std::vector<Sparse> &sMatdest,
@@ -171,9 +169,12 @@ private:
     void UpdateSol(std::vector<int> solution);
 
     void freeData(int *& data);
+
     void freeData(double *& data);
 
     void InitEmptyModel();
+    
+    bool pruneTest(double bound);
 };
 
 #endif
