@@ -13,7 +13,7 @@
 #define scaleIneq 1.0
 #define MaxNineqAdded 10000
 #define mmax 10
-#define MAXITER 100
+#define MAXITER 1000
 
 #define FREE_DATA(data)\
     if(data)\

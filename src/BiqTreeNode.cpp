@@ -79,18 +79,43 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     }
     //if(nFixed == model->getNVar)
 
-
-    // call bounding 
     double valRelax = model->SDPbound();
 
     std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
 
+    // call bounding 
+    for(auto &it: biqVarStatus)
+    {
+        switch(it) {
+            case BiqVarFixedToZero:
+                std::printf("0   ");
+                break;
+            case BiqVarFixedToOne:
+                std::printf("1   ");
+                break;
+            case BiqVarFree:
+                std::printf("F   ");
+                break;
+            default:
+                std::printf("E   ");
+                break;
+        }
+    }
+    std::printf("\n");
+
+    // print vdFracSol vector in one line
+    for(auto &it: vdFracSol)
+    {
+        std::printf("%3.1f ", it);
+    }
+    std::printf("\n");
     // get the best solution so far (for parallel, it is the incumbent)
     bestVal = static_cast<int>(broker()->getIncumbentValue());
     if(bmaxProblem)
     {
         bestVal = -bestVal;
     }
+    std::printf("BestVal = %d\n",bestVal);
 
     if(
         ( bmaxProblem && static_cast<int>(floor(valRelax)) <= bestVal) || 
@@ -98,7 +123,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
         nFixed ==  model->getNVar()
       )
     {
-        //std::printf("This node is being fathomed\n");
+        std::printf("This node is being fathomed\n");
         setStatus(AlpsNodeStatusFathomed);
     }
     else
@@ -129,10 +154,12 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     std::vector<BiqVarStatus> newStatiLeft = oldStati;
     std::vector<BiqVarStatus> newStatiRight = oldStati;
 
+    //std::printf("x[%d] = 0\n",branchOn_);
     newStatiRight.at(branchOn_) = BiqVarFixedToZero;
     AlpsNodeDesc *descRight = new BiqNodeDesc(model, newStatiRight);
     newNodes.push_back(CoinMakeTriple(descRight, AlpsNodeStatusCandidate, 0.0));
 
+    //std::printf("x[%d] = 1\n",branchOn_);
     newStatiLeft.at(branchOn_)  = BiqVarFixedToOne;
     AlpsNodeDesc *descLeft = new BiqNodeDesc(model, newStatiLeft);
     newNodes.push_back(CoinMakeTriple(descLeft, AlpsNodeStatusCandidate, 1.0)); 
@@ -153,15 +180,27 @@ AlpsKnowledge * BiqTreeNode::decode(AlpsEncoded & encoded) const{
 void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<BiqVarStatus> varStatus)
 {
     double dMaxVal = -INFINITY;
+    double dMinVal = INFINITY;
     branchOn_ = 0;
 
    for(int i = 0; i < fracSol.size(); ++i)
    {
+        /*
+        // Branch on the variable x[i] that has the least fractional value
         //std::printf("%d =>\t %f \t %f\n", i, fracSol.at(i), fabs(0.5 - fracSol.at(i)));
         if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) > dMaxVal)
         {
             branchOn_ = i;
             dMaxVal = fabs(0.5 - fracSol.at(i));
         }
+        */
+
+        // Branch on the variable x[i] that has the most fractional value
+        if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) < dMinVal)
+        {
+            branchOn_ = i;
+            dMinVal = fabs(0.5 - fracSol.at(i));
+        }
+
    }
 }

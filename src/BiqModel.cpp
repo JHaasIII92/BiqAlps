@@ -195,29 +195,33 @@ void BiqModel::AllocSubCons()
 /// @return 
 double BiqModel::SDPbound()
 {
+    nIneq_ = 0;
     int i;
     int iStatus;
     int nbit = 0;
-    int nAdded;
-    int nSubtracted;
+    int nAdded = 0;
+    int nSubtracted = 0;
     int nHeurRuns = 25;
     int len_y = mA_ + mB_ + nIneq_;
 
     double dMinAllIneq;
-    double dAlpha = 10;
+    double dAlpha = 1.0;
     double dTol = 0.08;
+    double dMinAlpha = 1e-5;
+    double dMinTol = 5e-2;
     double dRetBound = 0.0;
     
     bool prune = false;
     // param
-    int nMinAdded = 50;
-    int nMaxIter = 300;
+    int nMinAdded = 500;
+    int nMaxIter = 2000;
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
 
     // 
     if(nVar_sub_ == 0)
     {
+        std::printf("On a leaf\n");
         dRetBound = Q_sub_[0];
         return dRetBound;
     }
@@ -228,33 +232,39 @@ double BiqModel::SDPbound()
     }
     
     sim(dAlpha);
-    for(i = 0; i <= nMaxIter; ++i)
+    for(i = 0; i < 100; ++i)
     {
 
         // Call BFGS solver
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
         dRetBound = (max_problem_) ? f_ : -f_;
 
-        GWheuristic(nHeurRuns);
-        prune = pruneTest(dRetBound);
-        
         dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
-        //PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
+
+        PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
+
+        prune = pruneTest(dRetBound);
+        if(!prune)
+        {
+            GWheuristic(nHeurRuns);
+        }
 
         // check if we are done
-        if(prune || iStatus == -1)
+        if(prune || nbit > nMaxIter || iStatus == -1)
         {
             break;
         }
         // update parameters
         if(nAdded < nMinAdded)
         {
-                dAlpha *= dScaleAlpha;
-                dTol *= dScaleTol;
+            dAlpha *= dScaleAlpha;
+            dAlpha = (dAlpha < dMinAlpha) ? dMinAlpha : dAlpha;
+            dTol *= dScaleTol;
+            dTol = (dTol < dMinTol) ? dMinTol : dTol;
         }
 
-
     }
+    //PrintBoundingTable(i, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
     dRetBound = (max_problem_) ? f_ : -f_;
     
     return dRetBound;
@@ -1121,6 +1131,8 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     TriMap::iterator itMap;
     TriCuts::iterator itIneq;
     TriCuts::iterator itNextIneq;
+
+
     
 
     // Fill the Heap_ with most violated cuts
@@ -1424,9 +1436,8 @@ double BiqModel::primalHeuristic()
                 it = 0;
             }
         }
-        bTest = isFeasibleSolution(viSolution_1_);
     }
-
+    UpdateSol(viSolution_1_);
     return dRet;
 }
 
@@ -1461,8 +1472,8 @@ double BiqModel::GWheuristic(int nPlanes)
         dPlaneNorm = 0.0;
         for(auto &it: hyperPlane)
         {
-            it = 1.0 + 100.0 * static_cast<double>(rand())/(static_cast<double>(RAND_MAX) + 1.0)
-;            dPlaneNorm += it*it;
+            it = 1.0 + 100.0 * static_cast<double>(rand())/(static_cast<double>(RAND_MAX) + 1.0);
+            dPlaneNorm += it*it;
         }
         dPlaneNorm = sqrt(dPlaneNorm);
         dPlaneInvNorm = 1.0/dPlaneNorm;
@@ -1594,11 +1605,12 @@ bool BiqModel::pruneTest(double dBound)
     {
         bestVal = -bestVal;
     }
+    
 
-
-
+    //std::printf("bestVal = %d \n",bestVal);
+    //std::printf("static_cast<int>(floor(%f))  <= %d \n",dBound, bestVal);
     if(
-        bestVal < -INT32_MAX &&
+        //bestVal < -INT32_MAX &&
         (
         (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
         (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal)
@@ -1607,6 +1619,7 @@ bool BiqModel::pruneTest(double dBound)
     {
         bRet = true;
     }
+    //std::printf("bRet = %d \n",bRet);
     
     return bRet;
 }

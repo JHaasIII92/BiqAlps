@@ -78,7 +78,7 @@ FC = gfortran
 CXXFLAGS = -O2 -DNDEBUG 
 
 ifeq ($(debug), 1)
-    CXXFLAGS += -g
+    CXXFLAGS = -g 
 endif
 
 FFLAGS =   -O -Wall -fbounds-check -Wno-uninitialized
