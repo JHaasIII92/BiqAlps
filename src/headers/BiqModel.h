@@ -108,6 +108,7 @@ public:
 
     inline int getNVar() const { return nVar_;}
     inline void setNVar( int nVar) { nVar_ = nVar;}
+    double GetObjective(){return f_;};
 
     inline bool isMax() const { return max_problem_;}
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
@@ -119,6 +120,7 @@ public:
     double primalHeuristic();
 
     double GWheuristic(int nPlanes);
+    
     
     std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);
 private:

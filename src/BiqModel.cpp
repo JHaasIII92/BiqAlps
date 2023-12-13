@@ -201,19 +201,23 @@ double BiqModel::SDPbound()
     int nbit = 0;
     int nAdded = 0;
     int nSubtracted = 0;
+    int nbitalpha = 0;
     int nHeurRuns = 25;
     int len_y = mA_ + mB_ + nIneq_;
+    int incy = 1;
 
     double dMinAllIneq;
-    double dAlpha = 1.0;
+    double dAlpha = 10.0;
     double dTol = 0.08;
     double dMinAlpha = 1e-5;
     double dMinTol = 5e-2;
     double dRetBound = 0.0;
-    
+    double dPrev_f = MAXFLOAT;
+    double  bestVal;
     bool prune = false;
     // param
-    int nMinAdded = 500;
+    int maxNAiter = 50;
+    int nMinAdded = 50;
     int nMaxIter = 2000;
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
@@ -234,36 +238,54 @@ double BiqModel::SDPbound()
     sim(dAlpha);
     for(i = 0; i < 100; ++i)
     {
+        ++nbitalpha;
 
-        // Call BFGS solver
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
         dRetBound = (max_problem_) ? f_ : -f_;
-
         dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
-
-        PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
-
         prune = pruneTest(dRetBound);
+
+        /*
+        if(i==7)
+        {
+            print_symmetric_matrix(X_, nVar_sub_+1);
+            exit(1);
+        }
+        */
+    
+        
+
+        
+
         if(!prune)
         {
             GWheuristic(nHeurRuns);
         }
+        bestVal = static_cast<double>(broker()->getIncumbentValue());
+        if(max_problem_)
+        {
+            bestVal = -bestVal;
+        }
 
         // check if we are done
-        if(prune || nbit > nMaxIter || iStatus == -1)
+        if(prune || nbit > nMaxIter || iStatus == -1 || 
+                (fabs(f_ - dPrev_f) < 1.0 && dAlpha  < 1e-4 && fabs(bestVal - f_) > 2.0))
         {
             break;
         }
         // update parameters
-        if(nAdded < nMinAdded)
+        if(nAdded < nMinAdded || nbitalpha > maxNAiter)
         {
+            nbitalpha=0;
             dAlpha *= dScaleAlpha;
             dAlpha = (dAlpha < dMinAlpha) ? dMinAlpha : dAlpha;
             dTol *= dScaleTol;
             dTol = (dTol < dMinTol) ? dMinTol : dTol;
         }
 
+        dPrev_f = f_;
     }
+    
     //PrintBoundingTable(i, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
     dRetBound = (max_problem_) ? f_ : -f_;
     
@@ -272,6 +294,10 @@ double BiqModel::SDPbound()
 
 void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq /*double dTime*/)
 {
+    int len_y = mA_ + mB_ + nIneq_;  
+    int incy = 1;
+    double dYnorm = dnrm2_(len_y, y_, incy);
+
     if(iter == 1)
     {
         std::printf("======================================================================================\n");
@@ -301,7 +327,7 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
                 nBit, 
                 gradEnorm_,
                 gradInorm_,
-                0.0, /* TODO ynorm*/
+                dYnorm, /* TODO ynorm*/
                 dMinAllIneq, 
                 nIneq_, 
                 nSubtracted,
@@ -317,8 +343,8 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     int N = nVar_sub_ + 1;
     bool bStopBFGS = false;
     bool bPrune;
-    double factr = 0.000005;
-    double pgtol = 0.0;
+    double factr;
+    double pgtol;
     double dMinTemp;
     double dBound;
     char task[60];
@@ -670,9 +696,9 @@ void BiqModel::A(int mode, double alpha)
         
         for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
-            
             f_ += scaleIneq * y_[mB_ + mA_ + ineqCon];
 
+            
             switch (it->type_)
             {
 
@@ -700,6 +726,7 @@ void BiqModel::A(int mode, double alpha)
             g_[mB_ + mA_ + ineqCon] = (dTemp * dAlphaInv + 1.0) * scaleIneq;
             ineqCon++;
         }
+        //std::printf("needed: %d\t have: %d\n", nIneq_, ineqCon);
         //if(nIneq_>0) exit(0);
     }
 }
@@ -1171,7 +1198,10 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
                                 btiTemp.j_, 
                                 btiTemp.k_
             );
-            
+            /*
+            std::printf("type: %d\t i: %d\t j: %d\t k: %d\t val: %f\n",
+                        btiTemp.type_, btiTemp.i_, btiTemp.j_, btiTemp.k_,btiTemp.y_);
+                        */
             itMap = Map_.find(bttTemp);
             if(itMap == Map_.end())
             {
@@ -1451,6 +1481,7 @@ double BiqModel::GWheuristic(int nPlanes)
 
     int index;
     int bestVal = 0;
+    int subN = nVar_sub_+1;
 
     std::vector<double> hyperPlane;
 
@@ -1506,7 +1537,7 @@ double BiqModel::GWheuristic(int nPlanes)
                 sca = 0.0;
                 for(int j = 0; j < M_; ++j)
                 {
-                    sca += hyperPlane.at(j)*Z_[j * nVar_sub_ + index];
+                    sca += hyperPlane.at(j)*Z_[j * subN + index];
                 }
                 if(sca < 0)
                 {

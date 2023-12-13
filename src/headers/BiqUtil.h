@@ -10,7 +10,7 @@
 #define TRANSP 1
 #define NOTRANSP 0
 #define scaleEq 1.0
-#define scaleIneq 1.0
+#define scaleIneq 1.0 / (1.0 + sqrt(3.0)) // scales the inequality constraints (and dual vars)
 #define MaxNineqAdded 10000
 #define mmax 10
 #define MAXITER 1000

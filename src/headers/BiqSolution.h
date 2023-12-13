@@ -21,6 +21,12 @@ public:
     BiqSolution(BiqModel * model, std::vector<int> sol, int val);
     ~BiqSolution();
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
+
+   /** Get the best solution value */
+  double getObjValue() const { return value_; }
+
+  virtual double getQuality() const { return getObjValue(); }
+
     
 private:
     BiqSolution(BiqSolution const &);
