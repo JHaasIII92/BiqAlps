@@ -236,7 +236,7 @@ double BiqModel::SDPbound()
     }
     
     sim(dAlpha);
-    for(i = 0; i < 100; ++i)
+    for(i = 0; i < 40; ++i)
     {
         ++nbitalpha;
 
@@ -245,6 +245,7 @@ double BiqModel::SDPbound()
         dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
         prune = pruneTest(dRetBound);
 
+        PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
         /*
         if(i==7)
         {
@@ -268,8 +269,9 @@ double BiqModel::SDPbound()
         }
 
         // check if we are done
-        if(prune || nbit > nMaxIter || iStatus == -1 || 
-                (fabs(f_ - dPrev_f) < 1.0 && dAlpha  < 1e-4 && fabs(bestVal - f_) > 2.0))
+        if(prune || nbit > nMaxIter || iStatus == -1 
+                // || (fabs(f_ - dPrev_f) < 1.0 && dAlpha  < 1e-4 && fabs(bestVal - f_) > 2.0)
+                )
         {
             break;
         }
@@ -285,8 +287,8 @@ double BiqModel::SDPbound()
 
         dPrev_f = f_;
     }
+    exit(1);
     
-    //PrintBoundingTable(i, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
     dRetBound = (max_problem_) ? f_ : -f_;
     
     return dRetBound;

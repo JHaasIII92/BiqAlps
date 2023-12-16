@@ -1,4 +1,4 @@
-from ubuntu
+from ubuntu:20.04
 
 
 

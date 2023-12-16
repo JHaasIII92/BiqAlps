@@ -83,6 +83,26 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
 
     std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
 
+    std::printf("%d: Quality: %f\t", desc->getBranchedOn(), desc->getQuality());
+    for(auto &it: biqVarStatus)
+     {
+         switch(it) {
+             case BiqVarFixedToZero:
+                 std::printf("0 ");
+                 break;
+             case BiqVarFixedToOne:
+                 std::printf("1 ");
+                 break;
+             case BiqVarFree:
+                 std::printf("F ");
+                 break;
+             default:
+                 std::printf("E ");
+                 break;
+         }
+     }
+     std::printf("\n");
+
     bestVal = static_cast<int>(broker()->getIncumbentValue());
     if(bmaxProblem)
     {
@@ -96,7 +116,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
         nFixed ==  model->getNVar()
       )
     {
-        //std::printf("This node is being fathomed\n");
+        std::printf("This node is being fathomed \t valRelax: %f\t bestVal: %d \n",valRelax, bestVal);
         setStatus(AlpsNodeStatusFathomed);
     }
     else
@@ -116,9 +136,9 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
 std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::branch()
 {
     double dQuality;
-    // get a pointer to out desc class
+    // get a pointer to our desc class
     BiqNodeDesc * desc = dynamic_cast<BiqNodeDesc *>(desc_);
-    // get a pointer to out model class
+    // get a pointer to our model class
     BiqModel * model = dynamic_cast<BiqModel *>(desc->model());
     
     if(model->isMax()) 
@@ -129,6 +149,7 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     {
         dQuality = model->GetObjective();
     }
+    
     std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > newNodes;
 
     int nVar = model->getNVar();
@@ -139,11 +160,16 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     //std::printf("x[%d] = 0\n",branchOn_);
     newStatiRight.at(branchOn_) = BiqVarFixedToZero;
     AlpsNodeDesc *descRight = new BiqNodeDesc(model, newStatiRight);
+    
+    ((BiqNodeDesc *)descRight)->setQuality(dQuality);
+    ((BiqNodeDesc *)descRight)->setBranchedOn(branchOn_);
     newNodes.push_back(CoinMakeTriple(descRight, AlpsNodeStatusCandidate, dQuality));
 
     //std::printf("x[%d] = 1\n",branchOn_);
     newStatiLeft.at(branchOn_)  = BiqVarFixedToOne;
     AlpsNodeDesc *descLeft = new BiqNodeDesc(model, newStatiLeft);
+    ((BiqNodeDesc *)descLeft)->setQuality(dQuality);
+    ((BiqNodeDesc *)descLeft)->setBranchedOn(branchOn_);
     newNodes.push_back(CoinMakeTriple(descLeft, AlpsNodeStatusCandidate, dQuality)); 
 
     return newNodes;
@@ -185,4 +211,5 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
         }
 
    }
+   //printf("fracSol.at(%d) = %f\n", branchOn_, fracSol.at(branchOn_));
 }

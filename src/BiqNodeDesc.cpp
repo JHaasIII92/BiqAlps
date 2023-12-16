@@ -5,7 +5,8 @@
 
 BiqNodeDesc::BiqNodeDesc(BiqModel * model) : 
 AlpsNodeDesc(),
-model_(model)
+model_(model),
+dQuality_(0.0)
 {
     int nVar = model_->getNVar();
     varStatus_.resize(nVar, BiqVarFree);
@@ -14,7 +15,8 @@ model_(model)
 BiqNodeDesc::BiqNodeDesc(BiqModel * model, std::vector<BiqVarStatus> & st) :
 AlpsNodeDesc(),
 model_(model),
-varStatus_(st)
+varStatus_(st),
+dQuality_(0.0)
 {
 }
 
