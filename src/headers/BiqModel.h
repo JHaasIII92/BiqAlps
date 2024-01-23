@@ -97,7 +97,8 @@ private:
     
 public:
     BiqModel(){InitEmptyModel();};
-    BiqModel(int nVar, double *Q, bool max_problem,
+    BiqModel(int nVar, bool max_problem,
+             double *Q, Sparse Qs,
              std::vector<Sparse> As, double *a,
              std::vector<Sparse> Bs, double *b);
     ~BiqModel();
@@ -113,13 +114,13 @@ public:
     inline bool isMax() const { return max_problem_;}
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
 
-    double SDPbound();
+    double SDPbound(std::vector<BiqVarStatus> vbiqVarStatus);
 
     void CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus);
 
     double primalHeuristic();
 
-    double GWheuristic(int nPlanes);
+    double GWheuristic(int nPlanes,  std::vector<BiqVarStatus> vbiqVarStatus);
     
     
     std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);

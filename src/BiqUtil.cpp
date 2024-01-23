@@ -29,17 +29,18 @@ int TRI_TYPE(BiqTriTuple btt)
     return std::get<3>(btt);
 }
 
-void FillSparseMatrix(Sparse& sMat, const double *pdData, int N)
+void FillSparseMatrix(Sparse& sMat, std::vector<double> data)
 {
     int i = 0;
     int j = 0;
     double dTmp;
+    int N = sqrt(data.size());
 
     for (j = 0; j < N; ++j) 
     {
         for (i = j; i < N; ++i)
         {
-            dTmp = pdData[i + j * N];
+            dTmp = data.at(i + j * N);
             if(fabs(dTmp) > 0.0)
             {
                 sMat.push_back(BiqSparseTriple(i,j,dTmp));
@@ -86,6 +87,9 @@ void PrintMatrix(double * pdMat, int nRow, int nCol)
         }
     }
     std::printf("===============================================================\n");
+
+
+
 }
 
 void print_vector(double *vec, int N) 
@@ -107,4 +111,27 @@ void print_symmetric_matrix(double *Mat, int N)
         }
         printf("\n");
     }
+}
+
+void zeroOutMatrix(std::vector<double> &mat)
+{
+    for(auto &it: mat)
+    {
+        it = 0;
+    }
+}
+
+void PrintMatrix(std::vector<double> mat)
+{
+    int N = sqrt(mat.size());
+
+    for(int i = 0; i < N; ++ i)
+    {
+        for(int j = 0; j < N; ++j)
+        {
+            std::printf("%f ", mat.at(i + j*N));
+        }
+        std::printf("\n");
+    }
+    std::printf("\n");
 }

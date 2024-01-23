@@ -79,10 +79,10 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     }
     //if(nFixed == model->getNVar)
 
-    double valRelax = model->SDPbound();
+    double valRelax = model->SDPbound(biqVarStatus);
 
     std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
-
+    /*
     std::printf("%d: Quality: %f\t", desc->getBranchedOn(), desc->getQuality());
     for(auto &it: biqVarStatus)
      {
@@ -102,7 +102,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
          }
      }
      std::printf("\n");
-
+    */
     bestVal = static_cast<int>(broker()->getIncumbentValue());
     if(bmaxProblem)
     {
@@ -116,7 +116,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
         nFixed ==  model->getNVar()
       )
     {
-        std::printf("This node is being fathomed \t valRelax: %f\t bestVal: %d \n",valRelax, bestVal);
+        //std::printf("This node is being fathomed \t valRelax: %f\t bestVal: %d \n",valRelax, bestVal);
         setStatus(AlpsNodeStatusFathomed);
     }
     else
@@ -193,6 +193,7 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
 
    for(int i = 0; i < fracSol.size(); ++i)
    {
+        
         /*
         // Branch on the variable x[i] that has the least fractional value
         //std::printf("%d =>\t %f \t %f\n", i, fracSol.at(i), fabs(0.5 - fracSol.at(i)));
@@ -202,6 +203,8 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
             dMaxVal = fabs(0.5 - fracSol.at(i));
         }
         */
+        
+        
 
         // Branch on the variable x[i] that has the most fractional value
         if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) < dMinVal)
@@ -209,6 +212,7 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
             branchOn_ = i;
             dMinVal = fabs(0.5 - fracSol.at(i));
         }
+    
 
    }
    //printf("fracSol.at(%d) = %f\n", branchOn_, fracSol.at(branchOn_));

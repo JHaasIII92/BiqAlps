@@ -1,5 +1,4 @@
-from ubuntu:20.04
-
+from ubuntu
 
 
 ENV TZ="America/New_York"
@@ -12,4 +11,3 @@ WORKDIR /var/coin-or
 RUN ./coinbrew fetch Alps@master
 RUN ./coinbrew build  --tests none Alps
 RUN apt-get -y install libopenblas-dev
-RUN apt-get -y install less
