@@ -1,4 +1,4 @@
-from ubuntu
+FROM ubuntu
 
 
 ENV TZ="America/New_York"
