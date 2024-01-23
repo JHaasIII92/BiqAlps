@@ -29,22 +29,28 @@ class BiqNodeDesc :  public AlpsNodeDesc
 private:
     /* data */
     BiqModel * model_;
-    BiqVarStatus * varStatus_;
-
-
+    std::vector<BiqVarStatus> varStatus_;
+    double dQuality_;
+    int    iBranchedOn_;
     // Disable copy constructor
     BiqNodeDesc(BiqNodeDesc const & other);
     BiqNodeDesc & operator=(BiqNodeDesc const & rhs);
 public:
 
     BiqNodeDesc(BiqModel * model);
-    BiqNodeDesc(BiqModel * model, BiqVarStatus *& st);
+    BiqNodeDesc(BiqModel * model, std::vector<BiqVarStatus> & st);
+
+    void setQuality(double val){dQuality_ = val;};
+    double getQuality(){return dQuality_;}
+    
+    void setBranchedOn(int val){iBranchedOn_ = val;};
+    int getBranchedOn(){return iBranchedOn_;}
 
     virtual ~BiqNodeDesc();
 
     void setVarStatus(const int i, const BiqVarStatus status);
-    BiqVarStatus getVarStatus(const int i) { return varStatus_[i];};
-    BiqVarStatus const * getVarStati() const;
+    BiqVarStatus getVarStatus(const int i) { return varStatus_.at(i);};
+    std::vector<BiqVarStatus> const getVarStati() const;
 
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
 
@@ -52,7 +58,7 @@ public:
     BiqModel const * model() const { return model_; };
 
 
-    void bound(int & iBound, double * pdSol);
+    void bound(int & iBound, std::vector<int> solution);
 };
 
 

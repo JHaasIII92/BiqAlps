@@ -326,7 +326,7 @@ int calllbfgsb(double *y, Problem *PP, double alpha, double tol, double beta,
     	ListNodeVars[current_BobId].nbd[i] = 1; // y[i] bounded from below
     	ListNodeVars[current_BobId].binf[i] = 0.0; // lower bound is zero
     }
-
+    
     /*
      * BFGS main loop
      */

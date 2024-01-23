@@ -5,6 +5,12 @@
 
 #include "AlpsTreeNode.h"
 
+
+#include "AlpsKnowledgeBroker.h"
+#include "AlpsKnowledge.h"
+
+#include "BiqUtil.h"
+
 class BiqModel;
 class BiqNodeDesc;
 
@@ -100,6 +106,8 @@ public:
 private:
     BiqTreeNode(BiqTreeNode const &);
     BiqTreeNode & operator=(BiqTreeNode const &);
+
+    void SetBranchingVariable(std::vector<double> fracSol, std::vector<BiqVarStatus> varStatus);
 };
 
 #endif

@@ -76,7 +76,12 @@ CXX = g++
 FC = gfortran
 # C++ Compiler options
 CXXFLAGS = -O2 -DNDEBUG 
-FFLAGS =   -O -Wall -fbounds-check -g -Wno-uninitialized
+
+ifeq ($(debug), 1)
+    CXXFLAGS = -g 
+endif
+
+FFLAGS =   -O -Wall -fbounds-check -Wno-uninitialized
 # additional C++ Compiler options for linking
 CXXLINKFLAGS =  -Wl,--rpath -Wl,/var/coin-or/dist/lib
 

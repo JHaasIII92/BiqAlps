@@ -44,7 +44,7 @@ minTol = 5e-2
 #scaling = 1
 
 # ONLY ROOT NODE (1 -> true, 0 -> false) [default: 0]
-#root = 0
+root = 1
 
 # ENABLE PRIMAL HEURISTIC (1 -> true, 0 -> false) [default: 1]
 #heur_1 = 1

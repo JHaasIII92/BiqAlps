@@ -7,18 +7,26 @@
 #include <tuple>
 #include <queue>
 #include <unordered_map>
+#include <string>
 #define TRANSP 1
 #define NOTRANSP 0
 #define scaleEq 1.0
-#define scaleIneq 1.0
+#define scaleIneq 1.0 / (1.0 + sqrt(3.0)) // scales the inequality constraints (and dual vars)
 #define MaxNineqAdded 10000
 #define mmax 10
-#define MAXITER 100
+#define MAXITER 1000
+
+#define FREE_DATA(data)\
+    if(data)\
+    {\
+        delete[] data;\
+        data = NULL;\
+    }
 
 enum BiqVarStatus {
-    BiqVarFree = 0,
-    BiqVarFixedToOne,
-    BiqVarFixedToZero
+    BiqVarFree = -1,
+    BiqVarFixedToOne = 1,
+    BiqVarFixedToZero = 0
 };
 
 enum TriType
@@ -97,7 +105,7 @@ int J(BiqTriTuple btt);
 int K(BiqTriTuple btt);
 int TRI_TYPE(BiqTriTuple btt);
 
-void FillSparseMatrix(Sparse& sMat, const double *pdData, int N);
+void FillSparseMatrix(Sparse& sMat, std::vector<double> data);
 
 void PrintSparseMatrix(std::vector<BiqSparseTriple> bstVec);
 
@@ -106,6 +114,14 @@ void PrintMatrix(double * pdMat, int nRow, int nCol);
 void print_vector(double *vec, int N);
 
 void print_symmetric_matrix(double *Mat, int N);
+
+void PrintMatrix(std::vector<double> mat);
+
+void zeroOutMatrix(std::vector<double> &mat);
+
+
+
+
 
 extern "C" int openblas_get_num_threads();
 extern "C" void openblas_set_num_threads(int n);

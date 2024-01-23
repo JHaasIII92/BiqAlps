@@ -1,14 +1,17 @@
 #include "headers/BiqModel.h"
-
-
+#include "AlpsKnowledgeBroker.h"
+#include "AlpsKnowledge.h"
+#include "headers/BiqSolution.h"
 BiqModel::BiqModel(
-                int nVar, double *Q, int max_problem,
-                std::vector<Sparse> As, double *a,
-                std::vector<Sparse> Bs, double *b
+            int nVar, bool max_problem,
+            double *Q, Sparse Qs,
+            std::vector<Sparse> As, double *a,
+            std::vector<Sparse> Bs, double *b
    ) 
     : nVar_(nVar),
-      Q_(Q),
       max_problem_(max_problem),
+      Q_(Q),
+      Qs_(Qs),
       As_(As),
       Bs_(Bs)
 {
@@ -18,6 +21,7 @@ BiqModel::BiqModel(
     W_ = new double[N_];
     Z_ = new double[N_*N_];
 
+    
     /* DSYEVR optimal workspace query */
     M_ = 0;
     int INFO = 0;
@@ -60,7 +64,7 @@ BiqModel::BiqModel(
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
     vOffset_.resize(nVar_, 0);
-    FillSparseMatrix(Qs_,Q_,N_);
+    //FillSparseMatrix(Qs_,Q_,N_);
     // Copy the b vector in to the first Bs_.size() entries
     std::copy(b, b + Bs_.size(), b_);
     /* L-BFGS-B Data */
@@ -92,36 +96,59 @@ BiqModel::BiqModel(
     delete[] IWORK_SIZE;
     delete[] DWORK_SIZE;
 
+    viSolution_1_.resize(N_);
+    viSolution_2_.resize(N_);
+    vdFracSol_.resize(nVar_);
     
+}
 
-    CreateSubProblem();
-    SDPbound();
-    GWheuristic(20);
-    
+void BiqModel::InitEmptyModel()
+{
+    ISUPPZ_ = NULL;
+    X_ = NULL;
+    W_ = NULL;
+    Z_ = NULL;
+    DWORK_ = NULL;
+    IWORK_ = NULL;
+    a_ = NULL;
+    b_ = NULL;
+    b_sub_ = NULL;
+    a_sub_ = NULL;
+    Q_sub_ = NULL;
+    g_ = NULL;
+    y_ = NULL; 
+    binf_ = NULL;
+    bsup_ = NULL; 
+    nbd_ = NULL; 
+    wa_ = NULL; 
+    iwa_ = NULL;
+    pdTmpLinear_ = NULL;
+    pdTmp_sub_ = NULL;
 }
 
 BiqModel::~BiqModel()
 {
     // TODO clean up and make sure this is safe
-    delete[] ISUPPZ_; 
-    delete[]  X_;
-    delete[]  W_;
-    delete[] Z_;
-    delete[]  g_; 
-    delete[]  y_ ;
-    delete[]  binf_;
-    delete[]  bsup_ ;
-    delete[]  nbd_ ;
-    delete[]  wa_ ;
-    delete[] iwa_;
-    delete[] DWORK_;
-    delete[] IWORK_;
-    delete[] a_;
-    delete[] b_;
-    delete[] b_sub_;
-    delete[] a_sub_;
-    delete[] pdTmpLinear_;
-    delete[] pdTmp_sub_;
+    FREE_DATA(ISUPPZ_); 
+    FREE_DATA(X_);
+    FREE_DATA(W_);
+    FREE_DATA(Z_);
+    FREE_DATA(DWORK_);
+    FREE_DATA(IWORK_);
+    FREE_DATA(a_);
+    FREE_DATA(b_);
+    FREE_DATA(b_sub_);
+    FREE_DATA(a_sub_);
+    FREE_DATA(Q_sub_);
+    FREE_DATA(g_); 
+    FREE_DATA(y_);
+    FREE_DATA(binf_);
+    FREE_DATA(bsup_);
+    FREE_DATA(nbd_);
+    FREE_DATA(wa_);
+    FREE_DATA(iwa_);
+    FREE_DATA(pdTmpLinear_);
+    FREE_DATA(pdTmp_sub_);
 }
 
 /// @brief 
@@ -129,6 +156,7 @@ BiqModel::~BiqModel()
 /// @return 
 AlpsKnowledge * BiqModel::decode(AlpsEncoded & encode) const
 {
+    std::printf("AlpsKnowledge * BiqModel::decode\n");
     std::cerr << "Not implemented!" << std::endl;
     throw std::exception();
 }
@@ -167,29 +195,44 @@ void BiqModel::AllocSubCons()
 
 /// @brief 
 /// @return 
-double BiqModel::SDPbound()
+double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus)
 {
+    nIneq_ = 0;
     int i;
     int iStatus;
     int nbit = 0;
-    int nAdded;
-    int nSubtracted;
-    double dMinAllIneq;
-    double dAlpha = 10;
-    double dTol = 0.08;
-    double dRetBound = 0.0;
+    int nAdded = 0;
+    int nSubtracted = 0;
+    int nbitalpha = 0;
+    int nHeurRuns = 25;
     int len_y = mA_ + mB_ + nIneq_;
+    int incy = 1;
+
+    double dMinAllIneq;
+    double dAlpha = 10.0;
+    double dTol = 8e-2;
+    double dMinTol = 5e-2;
+    double dRetBound = 0.0;
+    double dPrev_f = MAXFLOAT;
+    double  bestVal;
+    bool prune = false;
+    bool bGiveUp = false;
+    bool bStopSDPBound = false;
     // param
+    int maxNAiter = 50;
     int nMinAdded = 50;
-int nMaxIter = 30;
+    int MinNiter = 12;
+    int nMaxIter = 100;
+    int nitermax = 2000;
+    double dMinAlpha = 1e-5;
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
 
     // 
     if(nVar_sub_ == 0)
     {
+        std::printf("On a leaf\n");
         dRetBound = Q_sub_[0];
-        std::printf("N = 1: returning bound = %.1f\n", dRetBound); // TODO fprintf output
         return dRetBound;
     }
 
@@ -199,26 +242,84 @@ int nMaxIter = 30;
     }
     
     sim(dAlpha);
-
-    for(int i = 0; i <= nMaxIter; ++i)
+    for(i = 0; i < nMaxIter; ++i)
     {
-        iStatus = CallLBFGSB(dAlpha, dTol, nbit);
-        //dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
-        PrintBoundingTable(i+1, nbit, nAdded, nSubtracted, dAlpha, dTol, dMinAllIneq);
+        // update iteration countrer
+        ++nbitalpha;
 
-        if(nAdded < nMinAdded)
+        dPrev_f = f_;
+        // call BFGS solver
+        iStatus = CallLBFGSB(dAlpha, dTol, nbit);
+    
+        dRetBound = (max_problem_) ? f_ : -f_;
+        
+        prune = pruneTest(dRetBound);
+
+        if(!prune)
         {
-                dAlpha *= dScaleAlpha;
-                dTol *= dScaleTol;
+            GWheuristic(nHeurRuns, vbiqVarStatus);
+            prune = pruneTest(dRetBound);
         }
+
+
+        bestVal = static_cast<double>(broker()->getIncumbentValue());
+        if(max_problem_)
+        {
+            bestVal = -bestVal;
+        }
+
+
+        if( i+1 > MinNiter) // todo add root flag
+        {
+            bGiveUp = fabs(f_ - dPrev_f) < 1.0 &&
+                      dAlpha  < 1e-4           && 
+                      fabs(bestVal - dRetBound) > 2.0;
+        }
+
+        if(!prune && !bGiveUp)
+        {
+            dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
+        }
+        else
+        {
+            dMinAllIneq = NAN;
+            nAdded = 0;
+            nSubtracted = 0;
+        }
+
+        bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
+        
+        // check if we are done
+        if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nitermax)
+        {
+            //std::printf("gap: |%f - %f| = %f\n",bestVal,  dRetBound, fabs(bestVal - dRetBound));
+            break;
+        }
+        // update parameters
+        if(nAdded < nMinAdded || nbitalpha > maxNAiter)
+        {
+            nbitalpha = 0;
+            dAlpha *= dScaleAlpha;
+            dAlpha = (dAlpha < dMinAlpha) ? dMinAlpha : dAlpha;
+            dTol *= dScaleTol;
+            dTol = (dTol < dMinTol) ? dMinTol : dTol;
+        }
+
+        
     }
+    //PrintBoundingTable(i,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq);
+    dRetBound = (max_problem_) ? f_ : -f_;
     
     return dRetBound;
 }
 
 void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq /*double dTime*/)
 {
-    if(iter == 0)
+    int len_y = mA_ + mB_ + nIneq_;  
+    int incy = 1;
+    double dYnorm = dnrm2_(len_y, y_, incy);
+
+    if(iter == 1)
     {
         std::printf("======================================================================================\n");
         std::printf("%4s  %6s  %5s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %4s  %4s  %4s\n", 
@@ -238,7 +339,7 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
         std::printf("======================================================================================\n");
     }
 
-    std::printf("%4d  %6.1f  %5.1f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %5.0e  %6.0e  %4d  -%-3d  +%-3d\n", 
+    std::printf("%4d  %6.1f  %5.1f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %20.16e  %6.0e  %4d  -%-3d  +%-3d\n", 
                 iter, 
                 0.0, /* TODO time*/
                 f_, 
@@ -247,7 +348,7 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
                 nBit, 
                 gradEnorm_,
                 gradInorm_,
-                0.0, /* TODO ynorm*/
+                dYnorm, /* TODO ynorm*/
                 dMinAllIneq, 
                 nIneq_, 
                 nSubtracted,
@@ -263,12 +364,12 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     int N = nVar_sub_ + 1;
     bool bStopBFGS = false;
     bool bPrune;
-    double factr = 0.000005;
-    double pgtol = 0.0;
+    double factr;
+    double pgtol;
     double dMinTemp;
     double dBound;
     char task[60];
-    int iprint = -1;
+    int iprint = -10;
     char csave[60];
     int lsave[4];
     int isave[44];
@@ -282,9 +383,10 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
 
     
     // Initialize y
-    for(i = 0;  i < nIneq_; ++i)
+    int tmpPos = 0;
+    for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
     {
-        y_[mB_ + mA_ + i] = Cuts_.at(i).y_;
+        y_[mB_ + mA_ + tmpPos++] = it->y_;
     }
 
 
@@ -319,13 +421,6 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
            // L-BFGS-B requesting new f and g
            sim(dAlpha);
            ++nbit; 
-
-           /*
-           std::printf("f = %f\n",f_);
-           std::printf("=====\n");
-           print_vector(g_, len_y);
-           exit(0);
-           */
         }
         else if(strncmp(task, "NEW_X", 5) == 0)
         {
@@ -349,18 +444,18 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
             }
             gradInorm_ /= scaleIneq;
 
-            
-            //std::printf("GradENorm = %f\n", gradEnorm_);
-            //exit(0);
-            
-
             dBound = (max_problem_) ? f_  : - f_;
-            bPrune = Prune(); 
-
+            bPrune = pruneTest(dBound);
+            
+            //std::printf("Grad E: %20.16f \t Grad I: %20.16f\n",gradEnorm_, gradInorm_);
             if(bPrune
                || (gradEnorm_ < dTol && gradInorm_ < dTol)
                || nbit >= MAXITER)
                {
+                /*
+                std::printf("stopping ... prune: %d \t E norm %f tol %f \t E norm %f tol %f \tbits %d \n",
+                             bPrune,gradEnorm_,dTol,gradInorm_,dTol,nbit);
+                */
                 strcpy(task, "STOP");
                 for(i = 4; i < 60; ++i) task[i] = ' ';
                }
@@ -387,7 +482,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     int NM = N * M_;
     int incz = 1;
     dscal_(NM, sca, Z_, incz); 
-    //std::printf("LBFGSB bound = %f\n", dBound);
+    //std::printf("status => %s\n", task);
     return retStatus;
 }
 
@@ -410,14 +505,8 @@ void BiqModel::sim(double alpha)
     A(TRANSP, alpha);
     ProjSDP();
 
-    //std::printf("After ProjSdp f_ = %f\n", f_);
 
     f_ = f_ * 1000.0 * (dAlphaInv / 1000.0); // TODO see what happens 
-
-    /*
-    print_symmetric_matrix(X_, N);
-    exit(0);
-    */
 
     // call the A and B methods not transposed
     B(NOTRANSP, alpha);
@@ -429,7 +518,7 @@ void BiqModel::sim(double alpha)
     //exit(0);
     //print_symmetric_matrix(X_,N);
 }
-
+ 
 /// @brief 
 ///
 ///
@@ -476,22 +565,9 @@ void BiqModel::ProjSDP()
     double VU = bornesup;
     int IL = 0;
     int IU = 0;
-    double ABSTOL = 0; // TODO could be a param 
+    double ABSTOL = 1e-8; // TODO could be a param 
     int LDZ = N;
     int INFO;
-
-    /*
-    std::printf("Printing X_..\n");
-    print_symmetric_matrix(X_,N);
-    exit(0);
-    */
-    //std::printf("") /// print out each input // which dsyevr_ // is there any rng used??
-
-    /*
-    std::printf("N = %d\t VL = %f\t VU = %f\t nDWORK_ = %d\t nIWORK_ = %d\n",
-                 N, VL, VU, nDWORK_, nIWORK_);
-    exit(0);
-    */
 
     dsyevr_(JOBZ, RANGE, UPLO, N, X_, LDX, VL, VU, IL, IU, ABSTOL,
             M_, W_, Z_, LDZ, ISUPPZ_, DWORK_, nDWORK_, IWORK_, nIWORK_, INFO);
@@ -511,12 +587,6 @@ void BiqModel::ProjSDP()
         }
     }
 
-    /*
-    std::printf("N = %d \t M = %d\n", N, M_);
-    print_vector(Z_, N*M_);
-    exit(0);
-    */
-
     // Compute ff = 0.5*||X_+||^2 = 0.5*||W||^2
     int INCW = 1;
     double normW = dnrm2_(M_, W_, INCW);
@@ -529,13 +599,6 @@ void BiqModel::ProjSDP()
         temp = sqrt(W_[j]);
         dscal_(N, temp, Z_ + j*N, INCZ);
     }
-
-    /*
-    std::printf("Eigen Values\n");
-    print_vector(W_, M_);
-    std::printf("=====\n");
-    exit(0);
-    */
 
     char TRANS = 'N';
     double ALPHA = 1.0;
@@ -596,7 +659,7 @@ void BiqModel::A(int mode, double alpha)
         ineqCon = 0;
         for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
-            dTemp = 0.5 * scaleIneq * y_[mB_ + mA_ + ineqCon++];
+            dTemp = 0.5 * scaleIneq * y_[mB_ + mA_ + ineqCon];
             
             switch (it->type_)
             {
@@ -629,7 +692,14 @@ void BiqModel::A(int mode, double alpha)
                 X_[it->j_ + it->k_ * N] += dTemp;
             } break;
             }
+            /*
+            std::printf("dTemp: %f \t y = %f cut_y = %f\n",
+                dTemp, y_[mB_ + mA_ + ineqCon], it->y_);
+            */
+            ineqCon++;
         }
+
+        //exit(1);
     }
     else
     {
@@ -661,9 +731,9 @@ void BiqModel::A(int mode, double alpha)
         
         for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
-            
             f_ += scaleIneq * y_[mB_ + mA_ + ineqCon];
 
+            
             switch (it->type_)
             {
 
@@ -687,13 +757,16 @@ void BiqModel::A(int mode, double alpha)
                 dTemp = -X_[it->i_ + it->j_ * N] - X_[it->i_ + it->k_ * N] + X_[it->j_ + it->k_ * N];
             } break;
             }
-            /*
-            std::printf("i = %d  j = %d  k = %d type = %d\t  evaluated = %f\n", 
-                        it->i_, it->j_, it->k_, static_cast<int>(it->type_), dTemp);
-            */
+
             g_[mB_ + mA_ + ineqCon] = (dTemp * dAlphaInv + 1.0) * scaleIneq;
+
+            /*
+            printf("type: %d \t g[%d] = (%f * %f + 1.0) * %f\n", 
+                    it->type_, mB_ + mA_ + ineqCon, dTemp, dAlphaInv, scaleIneq);
+            */
             ineqCon++;
         }
+        //std::printf("needed: %d\ts have: %d\n", nIneq_, ineqCon);
         //if(nIneq_>0) exit(0);
     }
 }
@@ -749,17 +822,11 @@ void BiqModel::B(int mode, double alpha)
             f_ +=  scaleEq * b_sub_[eqCon] * y_[eqCon];
 
             g_[eqCon] = 0.0;
-            //PrintSparseMatrix(*itBs);
-            //std::printf("-----------\n");
+
             for(auto &it : *itBs)
             {
                 if(it.dVal_ == 0) continue;
 
-                /*
-                std::printf("X = %f \t dval = %f \n",
-                            X_[it.i_ + it.j_ * N], it.dVal_);
-                */
-                
                 if(it.i_ == it.j_)
                 {
                     g_[eqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
@@ -781,71 +848,35 @@ void BiqModel::B(int mode, double alpha)
 
 }
 
-
 /// @brief 
-/// @return 
-bool BiqModel::Prune()
+void BiqModel::CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus)
 {
-    // TODO add the Prune method
-
-    return false;
-}
-
-
-/// @brief 
-void BiqModel::CreateSubProblem()
-{
-    // temp data for building
-    std::vector<BiqVarStatus> vbiqVarStatus;
-    vbiqVarStatus.resize(nVar_, BiqVarFree);
-    int *piSol = new int[nVar_];
-
-    std::fill_n(piSol, nVar_, 0);
-    
-    /*
-    vbiqVarStatus.at(0) = BiqVarFixedToOne;
-    piSol[0] = 1;
-    vbiqVarStatus.at(3) = BiqVarFixedToOne;
-    piSol[3] = 1;
-    vbiqVarStatus.at(4) = BiqVarFixedToOne;
-    piSol[4] = 1;
-    vbiqVarStatus.at(5) = BiqVarFixedToOne;
-    piSol[5] = 1;
-    */
-
-    /*
-    vbiqVarStatus.at(1) = BiqVarFixedToZero;
-    piSol[1] = 0;
-    vbiqVarStatus.at(2) = BiqVarFixedToZero;
-    piSol[2] = 0;
-    */
-
-
     int nFixed = GetOffset(vbiqVarStatus);
 
     nVar_sub_ = nVar_ - nFixed;
 
     BuildConstraints(mB_, b_, Bs_, b_sub_, Bs_sub_,
-                        piSol, vbiqVarStatus, nFixed); 
+                        vbiqVarStatus, nFixed); 
 
 
     BuildConstraints(mA_, a_, As_, a_sub_, As_sub_,
-                        piSol, vbiqVarStatus, nFixed); 
+                        vbiqVarStatus, nFixed); 
 
 
-    BuildObjective(piSol, vbiqVarStatus, nFixed);
+    BuildObjective(vbiqVarStatus, nFixed);
+
 }
 
 
-void BiqModel::BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
+void BiqModel::BuildObjective(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int i, j;
     double dConstant;
     //
     GetSubMatrix(vbiqVarStatus, nFixed);
-    dConstant = GetConstant(Qs_, piSol, vbiqVarStatus);
+    dConstant = GetConstant(Qs_, vbiqVarStatus);
     //
-    GetLinear(Qs_, piSol, vbiqVarStatus, nFixed);
+    GetLinear(Qs_, vbiqVarStatus, nFixed);
 
     // Set constant
     //Q_sub_[nVar_sub_ + nVar_sub_*(nVar_sub_ + 1)] = Q_[nVar_ + nVar_*(nVar_ + 1)]; // original 
@@ -887,7 +918,7 @@ void BiqModel::BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatu
 void BiqModel::BuildConstraints(int nRows,
                                 double *RHSsource, std::vector<Sparse> sMatArraySource,
                                 double *RHSdest,   std::vector<Sparse> &sMatArraydest,
-                                int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
+                                std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int nnzAdded;
     int i;
@@ -900,8 +931,8 @@ void BiqModel::BuildConstraints(int nRows,
     for(int k = 0; k < nRows; ++k)
     {
         dCoefMatNorm = GetSubMatrixSparse(sMatArraySource.at(k), vbiqVarStatus, nnzAdded, nFixed);
-        dConstant = GetConstant(sMatArraySource.at(k), piSol, vbiqVarStatus);
-        GetLinear(sMatArraySource.at(k), piSol, vbiqVarStatus, nFixed);
+        dConstant = GetConstant(sMatArraySource.at(k), vbiqVarStatus);
+        GetLinear(sMatArraySource.at(k), vbiqVarStatus, nFixed);
 
         //
         //dScaleFactor = 1.0;
@@ -1028,23 +1059,27 @@ double BiqModel::GetSubMatrixSparse(Sparse sSourceMat,
 
 /// @brief loop over sMat and add up {-1, 1} const value from {0,1} sol
 /// @param sMat 
-/// @param piSol 
+/// @param solution 
 /// @param piFixed 
 /// @return 
-double BiqModel::GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus)
+double BiqModel::GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStatus)
 {
     double dRetConst = 0.0;
     double dTmp;
-
+    double dSolVal_i;
+    double dSolVal_j;
     for(auto &it : sMat)
     {
 
         // if in the quad part
         if(it.i_ < nVar_ && it.j_ < nVar_)
         {
-            if(vbiqVarStatus[it.i_] != BiqVarFree && vbiqVarStatus[it.j_] != BiqVarFree)
+            dSolVal_i = static_cast<double>(vbiqVarStatus.at(it.i_));
+            dSolVal_j = static_cast<double>(vbiqVarStatus.at(it.j_));
+            if(vbiqVarStatus.at(it.i_) != BiqVarFree && vbiqVarStatus.at(it.j_) != BiqVarFree)
             {
-                dTmp = (2*piSol[it.i_] - 1.0)*(2*piSol[it.j_] - 1.0)*it.dVal_;
+
+                dTmp = (2*dSolVal_i - 1.0)*(2*dSolVal_j - 1.0)*it.dVal_;
                 dRetConst += dTmp;
                 if(it.i_ != it.j_)
                 {
@@ -1062,7 +1097,8 @@ double BiqModel::GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus>
         {
             if(vbiqVarStatus[it.i_] != BiqVarFree)
             {
-                dRetConst += (2*piSol[it.i_] - 1.0)*2*it.dVal_;
+                dSolVal_i = static_cast<double>(vbiqVarStatus.at(it.i_));
+                dRetConst += (2*dSolVal_i- 1.0)*2*it.dVal_;
             }
         }
         // else if in the linear row
@@ -1070,7 +1106,8 @@ double BiqModel::GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus>
         {
             if(vbiqVarStatus[it.j_] != BiqVarFree)
             {
-                dRetConst += (2*piSol[it.j_] - 1.0)*2*it.dVal_;
+                dSolVal_j = static_cast<double>(vbiqVarStatus.at(it.j_));
+                dRetConst += (2*dSolVal_j- 1.0)*2*it.dVal_;
             }
         }
     }
@@ -1078,10 +1115,12 @@ double BiqModel::GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus>
     return dRetConst;
 }
 
-void BiqModel::GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
+void BiqModel::GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     double dSum = 0.0;
     double dVal = 0.0;
+    double dSolVal_i;
+    double dSolVal_j;
     int ii, jj, pos = 0;
     bool bIfree, bJfree;
     
@@ -1095,6 +1134,7 @@ void BiqModel::GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> 
         ii = itSource.i_;
         jj = itSource.j_;
         dVal = itSource.dVal_;
+        
 
         bIfree = vbiqVarStatus[ii] == BiqVarFree;
         bJfree = vbiqVarStatus[jj] == BiqVarFree;  
@@ -1112,11 +1152,13 @@ void BiqModel::GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> 
         {
             if(bIfree && !bJfree)
             {
-                pdTmpLinear_[ii - vOffset_.at(ii)] += (2 * piSol[jj] - 1.0)*dVal;
+                dSolVal_j = static_cast<double>(vbiqVarStatus.at(jj));
+                pdTmpLinear_[ii - vOffset_.at(ii)] += (2 * dSolVal_j - 1.0)*dVal;
             }
             else if(!bIfree && bJfree)
             {
-                pdTmpLinear_[jj - vOffset_.at(jj)] += (2 * piSol[ii] - 1.0)*dVal;
+                dSolVal_i = static_cast<double>(vbiqVarStatus.at(ii));
+                pdTmpLinear_[jj - vOffset_.at(jj)] += (2 * dSolVal_i - 1.0)*dVal;
             }
         }
 
@@ -1156,6 +1198,8 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     TriMap::iterator itMap;
     TriCuts::iterator itIneq;
     TriCuts::iterator itNextIneq;
+
+
     
 
     // Fill the Heap_ with most violated cuts
@@ -1164,28 +1208,57 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     // remove cuts from Cuts_ array
     itNextIneq = Cuts_.begin();
     yIndex = mB_ + mA_;
+    int count = 0 ;
     for(itIneq = Cuts_.begin(); itIneq < Cuts_.begin()+nIneq_; ++itIneq) 
     {
-        dIneqVal = EvalInequalities(itIneq->type_, itIneq->i_, itIneq->j_, itIneq->k_);
-
-        itIneq->y_ = y_[yIndex]; yIndex++;
+        itIneq->value_ = EvalInequalities(itIneq->type_, itIneq->i_, itIneq->j_, itIneq->k_);
+        
+        itIneq->y_ = y_[yIndex]; yIndex++; count++;
         // if multiplier is small and inequality is large
-        if(itIneq->y_ < 1e-8 && dIneqVal > gradInorm_/10.0)
+        if(itIneq->y_ < 1e-8 && itIneq->value_ > gradInorm_/10.0)
         {
             ++nSubtracted;
+
+            bttTemp =  BiqTriTuple(itIneq->type_,
+                                itIneq->i_, 
+                                itIneq->j_, 
+                                itIneq->k_);
+
+            Map_.erase(bttTemp);
+            //std::printf("-  ");
         }
         else
         {
-            itNextIneq = itIneq;
+            itNextIneq->i_ = itIneq->i_;
+            itNextIneq->j_ = itIneq->j_;
+            itNextIneq->k_ = itIneq->k_;
+            itNextIneq->type_ = itIneq->type_;
+            itNextIneq->value_ = itIneq->value_;
+            itNextIneq->y_ = itIneq->y_;
             ++itNextIneq;
+             //std::printf("   ");
         }
+    /*
+        std::printf("%4d  t: %4d i: %4d j: %4d k: %4d \t value: %8f \t y: %8f\n",
+                            count, itIneq->type_, itIneq->i_, itIneq->j_, itIneq->k_,
+                            itIneq->value_, itIneq->y_);
+    */
     }
 
+    /*
+    count = 0;
+    for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
+    {
+        ++count;
+        std::printf("%4d  t: %4d i: %4d j: %4d k: %4d \t value: %8f \t y: %8f\n",
+                            count, it->type_, it->i_, it->j_, it->k_,
+                            it->value_, it->y_);
+    }
+    */
     while (!Heap_.empty())
     {
         // get least violated cut
         btiTemp = Heap_.top();
-        //std::printf("Cut[%d, %d, %d] \t value = %f \t type = %d\n", btiTemp.i_, btiTemp.j_, btiTemp.k_, btiTemp.value_, btiTemp.type_);
         Heap_.pop();
         if(itNextIneq != Cuts_.end())
         {
@@ -1195,7 +1268,10 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
                                 btiTemp.j_, 
                                 btiTemp.k_
             );
-            
+            /*
+            std::printf("type: %d\t i: %d\t j: %d\t k: %d\t val: %f\n",
+                        btiTemp.type_, btiTemp.i_, btiTemp.j_, btiTemp.k_,btiTemp.y_);
+                        */
             itMap = Map_.find(bttTemp);
             if(itMap == Map_.end())
             {
@@ -1205,6 +1281,7 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
                 itNextIneq->j_ = btiTemp.j_;
                 itNextIneq->k_ = btiTemp.k_;
                 itNextIneq->type_ = btiTemp.type_;
+                itNextIneq->value_ = btiTemp.value_;
                 itNextIneq->y_ = btiTemp.y_;
                 ++itNextIneq;
                 ++nAdded;
@@ -1218,6 +1295,7 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
                 itNextIneq->j_ = btiTemp.j_;
                 itNextIneq->k_ = btiTemp.k_;
                 itNextIneq->type_ = btiTemp.type_;
+                itNextIneq->value_ = btiTemp.value_;
                 itNextIneq->y_ = btiTemp.y_;
                 ++itNextIneq;
                 ++nAdded;
@@ -1233,7 +1311,6 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     // TODO need to update the dual variable on each cut
     // update the number of inequalites
     nIneq_ = nIneq_ - nSubtracted + nAdded;
-    //std::printf("Added: %d \t Subtracted: %d \t nIneq = %d\n",nAdded, nSubtracted, nIneq_);
     return dRetVal;
 }
 
@@ -1267,12 +1344,12 @@ double BiqModel::GetViolatedCuts()
                     {
                         continue;
                     }
+                    
       
                     dTestIneq = EvalInequalities(static_cast<TriType>(type), i, j, k);
                     // keep track of the minimum ineq
                     dRetMinIneq = (dTestIneq < dRetMinIneq) ? dTestIneq : dRetMinIneq;
-                
-
+                    
                     btiTemp = BiqTriInequality(
                                     static_cast<TriType>(type),
                                     i,j,k,
@@ -1284,7 +1361,15 @@ double BiqModel::GetViolatedCuts()
                         // (1) add cuts until full
                         // check if the cut has been added .. to the map
                         if(dTestIneq < dGapCuts)
+                        {
                             Heap_.push(btiTemp);
+                            /*
+                            std::printf("type: %d \t i: %d \t j: %d \t k: %d \t test ineq = %20.16f\n",
+                                 type, i, j, k, dTestIneq);
+                            */
+                                 
+                        }
+                            
 
                     }
                     else if(btiTemp < Heap_.top())
@@ -1312,6 +1397,7 @@ double BiqModel::EvalInequalities(TriType triType, int ii, int jj, int kk)
         case ONE:
         {
             dRetIneqVal = X_[ii+jj*(nVar_sub_ + 1)] + X_[ii+kk*(nVar_sub_ + 1)] + X_[jj+kk*(nVar_sub_ + 1)] + 1.0;
+            //std::printf("%d, %d, %d \t dRetIneqVal = %f = %f + %f + %f + 1.0\n",ii, jj, kk, dRetIneqVal,X_[ii+jj*(nVar_sub_ + 1)] , X_[ii+kk*(nVar_sub_ + 1)] , X_[jj+kk*(nVar_sub_ + 1)]);
         }
         break;
         
@@ -1342,7 +1428,7 @@ double BiqModel::EvalInequalities(TriType triType, int ii, int jj, int kk)
     return dRetIneqVal;
 }
 
-double BiqModel::EvalSolution(std::vector<int> soloution)
+double BiqModel::EvalSolution(std::vector<int> solution)
 {
     double dRetSol = 0.0;
     int i, j;
@@ -1353,18 +1439,18 @@ double BiqModel::EvalSolution(std::vector<int> soloution)
         i = it.i_;
         j = it.j_;
         dVal = it.dVal_;
-        //printf("soloution[%d] = %d \t soloution[%d] = %d\n", i, soloution.at(i), j, soloution.at(j));
+        //printf("solution[%d] = %d \t solution[%d] = %d\n", i, solution.at(i), j, solution.at(j));
         if(i < nVar_ && j < nVar_)
         {
-            dRetSol += 2*dVal*(2*soloution.at(i) - 1.0)*(2*soloution.at(j) - 1.0);
+            dRetSol += 2*dVal*(2*solution.at(i) - 1.0)*(2*solution.at(j) - 1.0);
         } 
         else if(i == nVar_ && j < nVar_)
         {
-            dRetSol += 2*dVal*(2*soloution.at(j) - 1.0);
+            dRetSol += 2*dVal*(2*solution.at(j) - 1.0);
         }
         else if(i < nVar_ && j == nVar_)
         {
-            dRetSol += 2*dVal*(2*soloution.at(i) - 1.0);
+            dRetSol += 2*dVal*(2*solution.at(i) - 1.0);
         }
         else if(i == nVar_ && j == nVar_)
         {
@@ -1372,25 +1458,23 @@ double BiqModel::EvalSolution(std::vector<int> soloution)
         }
     }
 
-    printf("The soloution value is %f\n", dRetSol);
-    
     return dRetSol;
 }
 
 
-bool BiqModel::isFeasibleSolution(std::vector<int> soloution)
+bool BiqModel::isFeasibleSolution(std::vector<int> solution)
 {
 
     int m, i, j, k;
     double dSum, dTmp;
     bool bRet = true;
     // convert to {1, -1}
-    for(auto &it: soloution)
+    for(auto &it: solution)
     {
         it = 2*it - 1;
     } 
 
-    soloution.at(nVar_) = 1; 
+    solution.at(nVar_) = 1; 
 
     // loop over equality cons of master problem;
     i = 0;
@@ -1399,7 +1483,7 @@ bool BiqModel::isFeasibleSolution(std::vector<int> soloution)
         dSum  = 0;
         for(auto &it : itCons)
         {
-            dTmp = it.dVal_ * soloution.at(it.i_) * soloution.at(it.j_);
+            dTmp = it.dVal_ * solution.at(it.i_) * solution.at(it.j_);
             dSum += dTmp;
             if(it.i_ != it.j_)
             {
@@ -1423,7 +1507,7 @@ bool BiqModel::isFeasibleSolution(std::vector<int> soloution)
         dSum = 0.0;
         for(auto &it : itCons)
         {
-            dTmp = it.dVal_ * soloution.at(it.i_) * soloution.at(it.j_);
+            dTmp = it.dVal_ * solution.at(it.i_) * solution.at(it.j_);
             dSum += dTmp;
             if(it.i_ != it.j_)
             {
@@ -1440,13 +1524,10 @@ bool BiqModel::isFeasibleSolution(std::vector<int> soloution)
         ++i; 
     }
 
-
-
-
     return bRet;
 }
 
-double BiqModel::primalHeuristic(std::vector<int> soloution)
+double BiqModel::primalHeuristic()
 {
     double dRet = 0.0;
     double gamma;
@@ -1454,7 +1535,7 @@ double BiqModel::primalHeuristic(std::vector<int> soloution)
     bool bTest;
     for(gamma = 0.0; gamma < 1.0; gamma += 0.01)
     {
-        for(auto &it: soloution)
+        for(auto &it: viSolution_1_)
         {
             dRand = ((double) rand() / (double) RAND_MAX);
             if(dRand > gamma)
@@ -1466,36 +1547,31 @@ double BiqModel::primalHeuristic(std::vector<int> soloution)
                 it = 0;
             }
         }
-        bTest = isFeasibleSolution(soloution);
-        std::printf("Do we have a solution?? %d\n", bTest);
     }
-
+    UpdateSol(viSolution_1_);
     return dRet;
 }
 
-double BiqModel::GWheuristic(int nPlanes)
+double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatus)
 {
     double dRetBest = -1e+9;
     double dPlaneNorm;
     double dPlaneInvNorm;
     double sca;
+    double dTmpVal;
 
     int index;
+    int bestVal = 0;
+    int subN = nVar_sub_+1;
 
     std::vector<double> hyperPlane;
-    std::vector<int> solution_1;
-    std::vector<int> solution_2;
 
     hyperPlane.resize(M_);
-    solution_1.resize(nVar_+1);
-    solution_2.resize(nVar_+1);
 
-    solution_1.at(nVar_) = 1;
-    solution_2.at(nVar_) = 1;
+    viSolution_1_.at(nVar_) = 1;
+    viSolution_2_.at(nVar_) = 1;
 
     // temp have a solutin vector
-    std::vector<BiqVarStatus> vbiqVarStatus;
-    vbiqVarStatus.resize(nVar_, BiqVarFree);
     bool bSol1Feasible;
     bool bSol2Feasible;
     
@@ -1506,8 +1582,8 @@ double BiqModel::GWheuristic(int nPlanes)
         dPlaneNorm = 0.0;
         for(auto &it: hyperPlane)
         {
-            it = 1.0 + 100.0 * static_cast<double>(rand())/(static_cast<double>(RAND_MAX) + 1.0)
-;            dPlaneNorm += it*it;
+            it = 1.0 + 100.0 * static_cast<double>(rand())/(static_cast<double>(RAND_MAX) + 1.0);
+            dPlaneNorm += it*it;
         }
         dPlaneNorm = sqrt(dPlaneNorm);
         dPlaneInvNorm = 1.0/dPlaneNorm;
@@ -1525,14 +1601,14 @@ double BiqModel::GWheuristic(int nPlanes)
             {
             case BiqVarFixedToOne:
             {
-                solution_1.at(i) = 1;
-                solution_2.at(i) = 1;
+                viSolution_1_.at(i) = 1;
+                viSolution_2_.at(i) = 1;
             }break;
 
             case BiqVarFixedToZero:
             {
-                solution_1.at(i) = 0;
-                solution_2.at(i) = 0;
+                viSolution_1_.at(i) = 0;
+                viSolution_2_.at(i) = 0;
             }break;
 
             case BiqVarFree:
@@ -1540,17 +1616,17 @@ double BiqModel::GWheuristic(int nPlanes)
                 sca = 0.0;
                 for(int j = 0; j < M_; ++j)
                 {
-                    sca += hyperPlane.at(j)*Z_[j * nVar_sub_ + index];
+                    sca += hyperPlane.at(j)*Z_[j * subN + index];
                 }
                 if(sca < 0)
                 {
-                    solution_1.at(i) = 0;
-                    solution_2.at(i) = 1;
+                    viSolution_1_.at(i) = 0;
+                    viSolution_2_.at(i) = 1;
                 }
                 else
                 {
-                    solution_1.at(i) = 1;
-                    solution_2.at(i) = 0;  
+                    viSolution_1_.at(i) = 1;
+                    viSolution_2_.at(i) = 0;  
                 }
 
                 ++index;
@@ -1562,30 +1638,99 @@ double BiqModel::GWheuristic(int nPlanes)
             }
 
         }
-        bSol1Feasible = isFeasibleSolution(solution_1);
-        bSol2Feasible = isFeasibleSolution(solution_2);
-
-        if(bSol1Feasible)
-        {   
-            std::printf("feasible solution found: \n");
-            std::printf("Objective value: %f \n",EvalSolution(solution_1));
-            for(auto &it: solution_1)
-            {
-                std::printf("\t %d\n", it);
-            }
-        }
-        if(bSol2Feasible)
-        {   
-            std::printf("feasible solution found: \n");
-            std::printf("Objective value: %f \n",EvalSolution(solution_2));
-            for(auto &it: solution_2)
-            {
-                std::printf("\t %d\n", it);
-            }
-        }
-
+        UpdateSol(viSolution_1_);
+        UpdateSol(viSolution_2_);
     }
 
 
     return dRetBest;
+}
+
+void BiqModel::UpdateSol(std::vector<int> solution)
+{
+    bool bIsfeasible;
+    // check if feasible
+    bIsfeasible = isFeasibleSolution(solution);
+    if(!bIsfeasible) return;
+    
+
+    int bestVal = 0;
+    double dTmpVal;
+
+    // The quality of a solution is the negative of the objective value
+    //  since Alps consideres sols with lower quality values better.
+    bestVal = static_cast<int>(broker()->getIncumbentValue());
+    if(max_problem_)
+    {
+        bestVal = -bestVal;
+    }
+
+    dTmpVal = EvalSolution(solution);
+    BiqSolution* biqSol = new BiqSolution( this, solution, dTmpVal);
+    if(max_problem_ && dTmpVal > bestVal)
+    {
+        broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dTmpVal);
+    }
+    else if(!max_problem_ && dTmpVal < bestVal)
+    {     
+        broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dTmpVal);
+    }   
+    else
+    {
+        /* do nothing*/
+    }
+}
+
+std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus)
+{
+    int nFixed = GetOffset(vbiqVarStatus);
+    int ii, jj;
+    double Xij;
+
+    // Get Last row of X_ 
+    for(int i = 0; i < nVar_; ++i)
+    {
+        if(vbiqVarStatus.at(i) == BiqVarFree)
+        {
+            ii = nVar_sub_;
+            jj = i - vOffset_.at(i);
+            Xij = X_[ii + jj * (nVar_sub_ + 1)];
+            vdFracSol_.at(i) = (Xij + 1)/2;
+        }
+        else
+        {
+            vdFracSol_.at(i) = static_cast<double>(vbiqVarStatus.at(i));
+        }
+    }
+
+    return vdFracSol_;
+}
+
+
+bool BiqModel::pruneTest(double dBound)
+{
+    bool bRet = false;
+    int bestVal = static_cast<int>(broker()->getIncumbentValue());
+    if(max_problem_)
+    {
+        bestVal = -bestVal;
+    }
+    
+
+    //std::printf("bestVal = %d \n",bestVal);
+    
+    if(
+        //bestVal < -INT32_MAX &&
+        (
+        (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
+        (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal)
+        )
+      )
+    {
+        //std::printf("static_cast<int>(floor(%f))  <= %d \n",dBound, bestVal);
+        bRet = true;
+    }
+    //std::printf("bRet = %d \n",bRet);
+    
+    return bRet;
 }

@@ -5,6 +5,7 @@
 #include "AlpsModel.h"
 #include "BiqTreeNode.h"
 #include "BiqNodeDesc.h"
+#include "BiqSolution.h"
 #include "BiqUtil.h"
 #include "math.h"
 #include<iostream>
@@ -34,7 +35,7 @@ private:
     double *b_;                            // Right-hand-side equality constraints
     int mB_;                               // Number of equality constraints
                                  
-    int max_problem_;                      // Objective sense 
+    bool max_problem_;                      // Objective sense 
 
     /* sub model data*/
     double *X_;
@@ -87,13 +88,17 @@ private:
     int nIWORK_;
     int M_;
 
-    int *tempSol_;
+    std::vector<int> viSolution_1_;
+    std::vector<int> viSolution_2_;
+    std::vector<double> vdFracSol_;
+
     BiqModel(const BiqModel&);
     BiqModel& operator=(const BiqModel&);
     
 public:
-    BiqModel() {}
-    BiqModel(int nVar, double *Q, int max_problem,
+    BiqModel(){InitEmptyModel();};
+    BiqModel(int nVar, bool max_problem,
+             double *Q, Sparse Qs,
              std::vector<Sparse> As, double *a,
              std::vector<Sparse> Bs, double *b);
     ~BiqModel();
@@ -104,17 +109,21 @@ public:
 
     inline int getNVar() const { return nVar_;}
     inline void setNVar( int nVar) { nVar_ = nVar;}
+    double GetObjective(){return f_;};
 
+    inline bool isMax() const { return max_problem_;}
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
 
-    double SDPbound();
+    double SDPbound(std::vector<BiqVarStatus> vbiqVarStatus);
 
-    void CreateSubProblem();
+    void CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus);
 
-    double primalHeuristic(std::vector<int> soloution);
+    double primalHeuristic();
 
-    double GWheuristic(int nPlanes);
+    double GWheuristic(int nPlanes,  std::vector<BiqVarStatus> vbiqVarStatus);
     
+    
+    std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);
 private:
 
     void AddDiagCons();
@@ -130,23 +139,21 @@ private:
     void A(int mode, double alpha);
 
     void B(int mode, double alpha);
-    
-    bool Prune();
-    
+     
     void BuildConstraints(int nRows,
                           double *pdRHSsource, std::vector<Sparse> sMatSource,
                           double *pdRHSdest,   std::vector<Sparse> &sMatdest,
-                          int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+                          std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     double GetSubMatrixSparse(Sparse sSourceMat, std::vector<BiqVarStatus> vbiqVarStatus, int & nnzAdded, int nFixed);
 
-    void BuildObjective(int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+    void BuildObjective(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     void GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    double GetConstant(Sparse &sMat, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus); 
+    double GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStatus); 
 
-    void GetLinear(Sparse &sSource, int *piSol, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
+    void GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
     int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
 
@@ -158,9 +165,19 @@ private:
 
     void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq/*double dTime*/);
 
-    bool isFeasibleSolution(std::vector<int> soloution);
+    bool isFeasibleSolution(std::vector<int> solution);
 
-    double EvalSolution(std::vector<int> soloution);
+    double EvalSolution(std::vector<int> solution);
+
+    void UpdateSol(std::vector<int> solution);
+
+    void freeData(int *& data);
+
+    void freeData(double *& data);
+
+    void InitEmptyModel();
+    
+    bool pruneTest(double bound);
 };
 
 #endif
