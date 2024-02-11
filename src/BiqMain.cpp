@@ -30,8 +30,13 @@ int main(int argc, char * argv[])
     int iBlasThreads = 1;
     openblas_set_num_threads(iBlasThreads);
 
-    //std::string strDataFileName = argv[1];
-    std::string strDataFileName = "g05_60.4.bc";
+    //std::string strDataFileName = std::string strDataFileName = argv[1];
+
+    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/max-cut/examples/g05_60.4.bc";
+    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/sonetgr17.bc";
+    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_prod.bc";
+    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob.bc";
+    std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_square.bc";
 
     // data for the problem
     int nVar = 0;
@@ -44,7 +49,10 @@ int main(int argc, char * argv[])
     double *b;
     
     readModel(strDataFileName, nVar, max_problem, Q, Qs, As, a, Bs, b);
-
+    //std::printf("size of enq con %d",Bs.size());
+    //print_vector(b, Bs.size());
+    //PrintSparseMatrix(Bs.at(2));
+    //exit(1);
     BiqModel model(nVar, max_problem, Q, Qs, As, a, Bs, b);
     #ifdef COIN_HAS_MPI
           AlpsKnowledgeBrokerMPI broker(argc, argv, model);
@@ -140,20 +148,25 @@ void readModel(std::string strFileName,
     if(nCon > 0)
     {
         // add space to stor the data
+        Bs.resize(nEqCon);
+        As.resize(nInEqCon);
         b = new double[nEqCon];
         a = new double[nInEqCon];
         rhs = new double[nCon];
 
         // get the data 
-        getline (myFile, strLine);
+        //getline (myFile, strLine);
 
         // read it into 
         for(int i = 0; i < nCon; ++i)
         {
-            std::sscanf(strLine.c_str(), "%lf", &rhs[i]);
+            //std::fscanf(myFile, "%lf", &(rhs[i]));
+            myFile >> rhs[i];
         }
+        //myFile >> strLine;
     }
 
+    getline (myFile, strLine);
     getline (myFile, strLine);
     // next we are going to read in matrix data
     tmpMatrix0.resize(N*N);
@@ -206,8 +219,11 @@ void readModel(std::string strFileName,
             else if((i_index < N-1 && j_index == N-1) ||
                     (i_index == N-1 && j_index < N-1) )
             {
-                tmpMatrix0.at(i_index + j_index*N) += 0.25 * dBcVal;
-                tmpMatrix0.at(j_index + i_index*N) += 0.25 * dBcVal;
+                tmpMatrix0.at(i_index + j_index*N) += 0.5 * dBcVal;
+                tmpMatrix0.at(j_index + i_index*N) += 0.5 * dBcVal;
+
+                // add some to the const
+                tmpMatrix0.at(N-1 + N*(N-1)) += dBcVal;
             }
             // case in const 
             // we are in const when i_index == N - 1  && j_index == N - 1
@@ -245,22 +261,27 @@ void readModel(std::string strFileName,
 
             //printOutMatrix(tmpMatrix0);
             // now make a sparse matrix
-            if(numMat == 0)
+            if(numPrevMat == 0)
             {
                 for(int i = 0; i < N*N; ++i)
                 {
                     dBcVal = tmpMatrix0.at(i);
                     Q[i] = dBcVal;
                 }
+
                 FillSparseMatrix(Qs, tmpMatrix0);
+                //PrintSparseMatrix(Qs);
             }
             else if(!bInIneq)
             {
                 
                 Sparse sparseCon;
                 FillSparseMatrix(sparseCon, tmpMatrix0);
-                Bs.push_back(sparseCon);
+                Bs.at(pos_b) = sparseCon;
                 b[pos_b] = rhs[pos_rhs];
+
+                //PrintSparseMatrix(Bs.at(pos_b));
+
                 ++pos_b;
                 ++pos_rhs; 
             }
@@ -268,7 +289,7 @@ void readModel(std::string strFileName,
             {
                 Sparse sparseCon;
                 FillSparseMatrix(sparseCon, tmpMatrix0);
-                As.push_back(sparseCon);
+                As.at(pos_a) = sparseCon;
                 if(bInGeq)
                 {
                     a[pos_a] = - rhs[pos_rhs];
@@ -338,8 +359,11 @@ void readModel(std::string strFileName,
             else if((i_index < N-1 && j_index == N-1) ||
                     (i_index == N-1 && j_index < N-1) )
             {
-                tmpMatrix0.at(i_index + j_index*N) += 0.25 * dBcVal;
-                tmpMatrix0.at(j_index + i_index*N) += 0.25 * dBcVal;
+                tmpMatrix0.at(i_index + j_index*N) += 0.5 * dBcVal;
+                tmpMatrix0.at(j_index + i_index*N) += 0.5 * dBcVal;
+
+                // add some to the const
+                tmpMatrix0.at(N-1 + N*(N-1)) += dBcVal;
             }
             // case in const 
             // we are in const when i_index == N - 1  && j_index == N - 1

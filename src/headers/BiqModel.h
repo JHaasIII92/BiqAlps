@@ -177,6 +177,8 @@ private:
 
     void InitEmptyModel();
     
+    void SetConSparseSize();
+
     bool pruneTest(double bound);
 };
 

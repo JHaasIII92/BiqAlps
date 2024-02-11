@@ -13,7 +13,9 @@ BiqModel::BiqModel(
       Q_(Q),
       Qs_(Qs),
       As_(As),
+      a_(a),
       Bs_(Bs)
+
 {
     N_ = nVar_ + 1;
     ISUPPZ_ = new int[2*N_];
@@ -58,15 +60,15 @@ BiqModel::BiqModel(
     //temp 
     mA_ = As_.size();
     mB_ = Bs_.size() + N_;
-    a_ = new double[mA_];
-    b_ = new double[mB_];
     a_sub_ = new double[mA_];
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
     vOffset_.resize(nVar_, 0);
+    b_     = new double[mB_ + N_];
     //FillSparseMatrix(Qs_,Q_,N_);
     // Copy the b vector in to the first Bs_.size() entries
     std::copy(b, b + Bs_.size(), b_);
+
     /* L-BFGS-B Data */
     int nMax = mB_ + mA_ + MaxNineqAdded;
     int wa_length = (2 * mmax + 5) * nMax + 11 * mmax * mmax + 8 * mmax;
@@ -84,7 +86,7 @@ BiqModel::BiqModel(
     
     AddDiagCons();
     AllocSubCons();
-
+    SetConSparseSize();
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
     nIneq_ = 0;
@@ -99,6 +101,7 @@ BiqModel::BiqModel(
     viSolution_1_.resize(N_);
     viSolution_2_.resize(N_);
     vdFracSol_.resize(nVar_);
+    
     
 }
 
@@ -135,8 +138,6 @@ BiqModel::~BiqModel()
     FREE_DATA(Z_);
     FREE_DATA(DWORK_);
     FREE_DATA(IWORK_);
-    FREE_DATA(a_);
-    FREE_DATA(b_);
     FREE_DATA(b_sub_);
     FREE_DATA(a_sub_);
     FREE_DATA(Q_sub_);
@@ -184,13 +185,32 @@ void BiqModel::AddDiagCons()
     }
 }
 
+/// @brief use this method
+/// to set the size of each sub
+/// con sparse matrix
+void BiqModel::SetConSparseSize()
+{
+
+    for(int i = 0; i < mB_; ++i)
+    {
+        Bs_sub_.at(i).resize(Bs_.at(i).size());
+    }
+
+    
+    for(int i = 0; i < mA_; ++i)
+    {
+        As_sub_.at(i).resize(As_.at(i).size());
+    }
+
+}
+
 /// @brief
 /// Need to set the size of the array of cons
 /// Then need to set size for con
 void BiqModel::AllocSubCons()
 {
-    Bs_sub_.resize(100);
-    As_sub_.resize(100);
+    Bs_sub_.resize(mB_);
+    As_sub_.resize(mA_);
 }
 
 /// @brief 
@@ -231,8 +251,8 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus)
     // 
     if(nVar_sub_ == 0)
     {
-        std::printf("On a leaf\n");
         dRetBound = Q_sub_[0];
+        std::printf("On a leaf bound is: %f\n", dRetBound);
         return dRetBound;
     }
 
@@ -305,9 +325,9 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus)
             dTol = (dTol < dMinTol) ? dMinTol : dTol;
         }
 
-        
+        //PrintBoundingTable(i,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq);
     }
-    //PrintBoundingTable(i,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq);
+    
     dRetBound = (max_problem_) ? f_ : -f_;
     
     return dRetBound;
@@ -374,8 +394,10 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     int lsave[4];
     int isave[44];
     double dsave[29];
+    int mA_sub = As_sub_.size();
+    int mB_sub = Bs_sub_.size();
     // compute the number of variables in BFGS
-    int len_y = mA_ + mB_ + nIneq_;
+    int len_y = mA_sub + mB_sub + nIneq_;
     // set task = "START" and the rest of it to empty char
     strcpy(task, "START");
     for(i = 5; i < 60; ++i) task[i] = ' ';
@@ -386,18 +408,18 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     int tmpPos = 0;
     for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
     {
-        y_[mB_ + mA_ + tmpPos++] = it->y_;
+        y_[mA_sub + mB_sub + tmpPos++] = it->y_;
     }
 
 
     // compute the bounds for y
     //// equalities
-    for(i = 0; i < mB_; ++i)
+    for(i = 0; i < mB_sub; ++i)
     {
         nbd_[i] = 0; 
     }
     //// inequalities
-    for(i = mB_; i < len_y; ++i)
+    for(i = mB_sub; i < len_y; ++i)
     {
         nbd_[i] = 1; 
         binf_[i] = 0.0;
@@ -632,15 +654,17 @@ void BiqModel::A(int mode, double alpha)
 
     double dAlphaInv = 1.0 / alpha;
     double dTemp;
+    int mA_sub = As_sub_.size();
+    int mB_sub = Bs_sub_.size();
     int ineqCon;
     int N = nVar_sub_ + 1;
 
     if(mode == TRANSP)
     {
         // models inequalities 
-        for(ineqCon = 0; ineqCon < mA_; ++ineqCon) // try a range based loop here too
+        for(ineqCon = 0; ineqCon < mA_sub; ++ineqCon) // try a range based loop here too
         {
-            dTemp = scaleIneq * y_[mB_ + ineqCon];
+            dTemp = scaleIneq * y_[mB_sub + ineqCon];
 
             for(auto& it : As_sub_[ineqCon])
             {
@@ -659,7 +683,7 @@ void BiqModel::A(int mode, double alpha)
         ineqCon = 0;
         for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
-            dTemp = 0.5 * scaleIneq * y_[mB_ + mA_ + ineqCon];
+            dTemp = 0.5 * scaleIneq * y_[mB_sub + mA_sub + ineqCon];
             
             switch (it->type_)
             {
@@ -703,27 +727,27 @@ void BiqModel::A(int mode, double alpha)
     }
     else
     {
-        for(ineqCon = 0; ineqCon < mA_; ++ineqCon)
+        for(ineqCon = 0; ineqCon < mA_sub; ++ineqCon)
         {
 
             f_ += scaleIneq * a_sub_[ineqCon] * y_[mB_ + ineqCon];
 
-            g_[mB_ + ineqCon] = 0.0;
+            g_[mB_sub + ineqCon] = 0.0;
 
             for(auto& it : As_sub_[ineqCon])
             {
                 if(it.i_ = it.j_)
                 {
-                    g_[mB_ + ineqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
+                    g_[mB_sub + ineqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
                 }
                 else
                 {
-                    g_[mB_ + ineqCon] -= 2.0 * it.dVal_ * X_[it.i_ + it.j_ * N];
+                    g_[mB_sub + ineqCon] -= 2.0 * it.dVal_ * X_[it.i_ + it.j_ * N];
                 }
             }
-            g_[mB_ + ineqCon] *= dAlphaInv;
-            g_[mB_ + ineqCon] += a_sub_[ineqCon];
-            g_[mB_ + ineqCon] *= scaleIneq;
+            g_[mB_sub + ineqCon] *= dAlphaInv;
+            g_[mB_sub + ineqCon] += a_sub_[ineqCon];
+            g_[mB_sub + ineqCon] *= scaleIneq;
         }
 
         // cut inequalities
@@ -731,7 +755,7 @@ void BiqModel::A(int mode, double alpha)
         
         for(auto it = Cuts_.begin(); it < Cuts_.begin() + nIneq_; ++it)
         {
-            f_ += scaleIneq * y_[mB_ + mA_ + ineqCon];
+            f_ += scaleIneq * y_[mB_sub + mA_sub + ineqCon];
 
             
             switch (it->type_)
@@ -758,7 +782,7 @@ void BiqModel::A(int mode, double alpha)
             } break;
             }
 
-            g_[mB_ + mA_ + ineqCon] = (dTemp * dAlphaInv + 1.0) * scaleIneq;
+            g_[mB_sub + mA_sub + ineqCon] = (dTemp * dAlphaInv + 1.0) * scaleIneq;
 
             /*
             printf("type: %d \t g[%d] = (%f * %f + 1.0) * %f\n", 
@@ -792,11 +816,13 @@ void BiqModel::B(int mode, double alpha)
     double dAlphaInv = 1.0 / alpha;
     double dTemp;
     int N = nVar_sub_ + 1;
+    int mA_sub = As_sub_.size();
+    int mB_sub = Bs_sub_.size();
     //std::vector<BiqTriInequality>::iterator it = Bs_.begin();
 
     if(mode == TRANSP)
     {
-        for(int eqCon = 0; eqCon < mB_; ++eqCon)
+        for(int eqCon = 0; eqCon < mB_sub; ++eqCon)
         {
             dTemp = scaleEq * y_[eqCon];
             for(auto& it : Bs_sub_[eqCon])
@@ -817,7 +843,7 @@ void BiqModel::B(int mode, double alpha)
     {
         std::vector<Sparse>::iterator itBs = Bs_sub_.begin();
         
-        for(int eqCon = 0; eqCon < mB_; ++eqCon)   
+        for(int eqCon = 0; eqCon < mB_sub; ++eqCon)   
         {
             f_ +=  scaleEq * b_sub_[eqCon] * y_[eqCon];
 
@@ -938,8 +964,6 @@ void BiqModel::BuildConstraints(int nRows,
         //dScaleFactor = 1.0;
         dScaleFactor = 1.0 / (1.0 + fabs(RHSsource[k]) + dCoefMatNorm); 
         RHSdest[k] =  RHSsource[k];
-        // set itterator for fill
-        sMatArraydest.at(k).resize(100);
         itSource = (sMatArraydest.at(k)).begin();
         // Quad Part
         for(i = 0; i < nnzAdded; ++i)
@@ -1716,10 +1740,11 @@ bool BiqModel::pruneTest(double dBound)
         bestVal = -bestVal;
     }
     
-
-    //std::printf("bestVal = %d \n",bestVal);
-    
-    if(
+    if(bestVal == -2147483648)
+    {
+        bRet = false;
+    }
+    else if(
         //bestVal < -INT32_MAX &&
         (
         (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
