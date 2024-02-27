@@ -98,7 +98,9 @@ using Sparse = std::vector<BiqSparseTriple>;
 using BiqTriTuple = std::tuple<int,int,int,int>;
 using TriCuts = std::vector<BiqTriInequality>;
 using TriMap  = std::map<BiqTriTuple, bool>;
-using TriHeap = std::priority_queue<BiqTriInequality>;
+using TriHeap = std::priority_queue<BiqTriInequality, std::vector<BiqTriInequality>, std::less<BiqTriInequality>>;
+
+
 
 int I(BiqTriTuple btt);
 int J(BiqTriTuple btt);

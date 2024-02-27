@@ -93,6 +93,11 @@ BiqModel::BiqModel(
     SetConSparseSize();
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
+
+    std::vector<BiqTriInequality> container;
+    container.reserve(501);
+    Heap_ = TriHeap(std::less<BiqTriInequality>(), std::move(container));
+    
     nIneq_ = 0;
 
     // set some memory for the sTemp_sub_ matrix
@@ -104,8 +109,6 @@ BiqModel::BiqModel(
     viSolution_2_.resize(N_);
 
     vdFracSol_.resize(nVar_);
-    
-    
 }
 
 void BiqModel::InitEmptyModel()
