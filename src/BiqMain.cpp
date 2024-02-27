@@ -31,12 +31,11 @@ int main(int argc, char * argv[])
     openblas_set_num_threads(iBlasThreads);
 
     //std::string strDataFileName = std::string strDataFileName = argv[1];
-
-    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/max-cut/examples/g05_60.4.bc";
+    std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/max-cut/examples/g05_60.4.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/sonetgr17.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_prod.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob.bc";
-    std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_square.bc";
+    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_square.bc";
 
     // data for the problem
     int nVar = 0;
@@ -52,6 +51,7 @@ int main(int argc, char * argv[])
     //std::printf("size of enq con %d",Bs.size());
     //print_vector(b, Bs.size());
     //PrintSparseMatrix(Bs.at(2));
+    //PrintMatrix(Q, nVar+1,nVar+1);
     //exit(1);
     BiqModel model(nVar, max_problem, Q, Qs, As, a, Bs, b);
     #ifdef COIN_HAS_MPI
@@ -65,6 +65,7 @@ int main(int argc, char * argv[])
                                  new BiqSolution(&model));
         broker.registerClass(AlpsKnowledgeTypeNode, new BiqTreeNode(&model));
         broker.search(&model); 
+
 
     return 0;
 
@@ -167,7 +168,7 @@ void readModel(std::string strFileName,
     }
 
     getline (myFile, strLine);
-    getline (myFile, strLine);
+    // getline (myFile, strLine);
     // next we are going to read in matrix data
     tmpMatrix0.resize(N*N);
 
@@ -193,17 +194,17 @@ void readModel(std::string strFileName,
             }
             // case in quad or
             // i_index < N - 1 && j_index < N - 1
-            if(i_index < N-1 && j_index < N-1 && i_index != j_index)
+ if(i_index < N-1 && j_index < N-1 && i_index != j_index)
             {
-                 tmpMatrix0.at(i_index + j_index*N) += 0.25 * dBcVal;
-                 tmpMatrix0.at(j_index + i_index*N) += 0.25 * dBcVal;
-                 // add some to the linear part
+                tmpMatrix0.at(i_index + j_index*N) += 0.25 * dBcVal;
+                tmpMatrix0.at(j_index + i_index*N) += 0.25 * dBcVal;
+                // add some to the linear part
                 tmpMatrix0.at(i_index + N*(N-1)) += 0.25 * dBcVal;
                 tmpMatrix0.at(N-1 + N*i_index) += 0.25 * dBcVal;
                 tmpMatrix0.at(N-1 + j_index*N) += 0.25 * dBcVal;
                 tmpMatrix0.at(j_index + N*(N-1)) += 0.25 * dBcVal;
-                 // add some to the const
-                 tmpMatrix0.at(N-1 + N*(N-1)) += 0.5 * dBcVal;
+                // add some to the const
+                tmpMatrix0.at(N-1 + N*(N-1)) += 0.5 * dBcVal;
             }
             // case we are on the diag of the quad
             // zero it out and move it to the const

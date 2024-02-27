@@ -31,6 +31,7 @@ class BiqTreeNode : public AlpsTreeNode
 private:
 
     int branchOn_;
+    bool bCloseToZero_;
     
 public:
 

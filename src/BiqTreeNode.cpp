@@ -79,7 +79,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     }
     //if(nFixed == model->getNVar)
 
-    double valRelax = model->SDPbound(biqVarStatus);
+    double valRelax = model->SDPbound(biqVarStatus, isRoot);
 
     std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
     /*
@@ -163,14 +163,29 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     
     ((BiqNodeDesc *)descRight)->setQuality(dQuality);
     ((BiqNodeDesc *)descRight)->setBranchedOn(branchOn_);
-    newNodes.push_back(CoinMakeTriple(descRight, AlpsNodeStatusCandidate, dQuality));
+    if(bCloseToZero_)
+    {
+        newNodes.push_back(CoinMakeTriple(descRight, AlpsNodeStatusCandidate, 2*dQuality));
+    }
+    else
+    {
+        newNodes.push_back(CoinMakeTriple(descRight, AlpsNodeStatusCandidate, dQuality));
+    }
 
     //std::printf("x[%d] = 1\n",branchOn_);
     newStatiLeft.at(branchOn_)  = BiqVarFixedToOne;
     AlpsNodeDesc *descLeft = new BiqNodeDesc(model, newStatiLeft);
     ((BiqNodeDesc *)descLeft)->setQuality(dQuality);
     ((BiqNodeDesc *)descLeft)->setBranchedOn(branchOn_);
-    newNodes.push_back(CoinMakeTriple(descLeft, AlpsNodeStatusCandidate, dQuality)); 
+    
+    if(!bCloseToZero_)
+    {
+        newNodes.push_back(CoinMakeTriple(descLeft, AlpsNodeStatusCandidate, 2*dQuality)); 
+    }
+    else
+    {
+        newNodes.push_back(CoinMakeTriple(descLeft, AlpsNodeStatusCandidate, dQuality)); 
+    }
 
     return newNodes;
 }
@@ -189,31 +204,47 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
 {
     double dMaxVal = -INFINITY;
     double dMinVal = INFINITY;
+    bCloseToZero_ = false;
     branchOn_ = 0;
 
+   // branching stratagy...
+   // find the least fractional 
+   // then flag for prioity ....
    for(int i = 0; i < fracSol.size(); ++i)
    {
         
-        /*
+        
         // Branch on the variable x[i] that has the least fractional value
         //std::printf("%d =>\t %f \t %f\n", i, fracSol.at(i), fabs(0.5 - fracSol.at(i)));
         if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) > dMaxVal)
         {
             branchOn_ = i;
             dMaxVal = fabs(0.5 - fracSol.at(i));
+
+            if(fracSol.at(i) - 0.5 < 0)
+            {
+                bCloseToZero_ = true;
+            }
+            else
+            {
+                bCloseToZero_ = false;
+            }
+        }
+        
+        
+        
+        /*
+        // Branch on the variable x[i] that has the most fractional value
+        if(varStatus.at(i) == BiqVarFree && fabs(fracSol.at(i)) < dMinVal)
+        {
+            //std::printf("frac sol => %f\n", fracSol.at(i));
+            branchOn_ = i;
+            dMinVal = fabs(fracSol.at(i));
         }
         */
         
-        
-
-        // Branch on the variable x[i] that has the most fractional value
-        if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) < dMinVal)
-        {
-            branchOn_ = i;
-            dMinVal = fabs(0.5 - fracSol.at(i));
-        }
-    
 
    }
    //printf("fracSol.at(%d) = %f\n", branchOn_, fracSol.at(branchOn_));
+   //exit(1);
 }

@@ -90,6 +90,7 @@ private:
 
     std::vector<int> viSolution_1_;
     std::vector<int> viSolution_2_;
+
     std::vector<double> vdFracSol_;
 
     BiqModel(const BiqModel&);
@@ -114,7 +115,7 @@ public:
     inline bool isMax() const { return max_problem_;}
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
 
-    double SDPbound(std::vector<BiqVarStatus> vbiqVarStatus);
+    double SDPbound(std::vector<BiqVarStatus> vbiqVarStatus, bool bRoot);
 
     void CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus);
 
@@ -163,13 +164,13 @@ private:
 
     double EvalInequalities(TriType triType, int ii, int jj, int kk);
 
-    void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq/*double dTime*/);
+    void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq, double dGap/*double dTime*/);
 
     bool isFeasibleSolution(std::vector<int> solution);
 
     double EvalSolution(std::vector<int> solution);
 
-    void UpdateSol(std::vector<int> solution);
+    void UpdateSol(double dVal, std::vector<int> solution);
 
     void freeData(int *& data);
 
