@@ -57,7 +57,7 @@ LBFGSBSRCS := lbfgsb.f linpack.f blas.f timer.f
 
 ALLOBJS = $(OBJS) $(LBFGSBOBJS)
 # CHANGEME: Additional libraries
-ADDLIBS = -lopenblas  -lgfortran
+ADDLIBS = -lopenblas  -lgfortran 
 
 # CHANGEME: Additional flags for compilation (e.g., include flags)
 ADDINCFLAGS =
@@ -75,7 +75,7 @@ COIN_CXX_IS_CL = @COIN_CXX_IS_CL_TRUE@TRUE
 CXX = g++
 FC = gfortran
 # C++ Compiler options
-CXXFLAGS = -O2 -DNDEBUG 
+CXXFLAGS = -O2 -DNDEBUG  -pg
 
 ifeq ($(debug), 1)
     CXXFLAGS = -g 
