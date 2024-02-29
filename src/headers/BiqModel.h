@@ -63,6 +63,10 @@ private:
     TriCuts Cuts_;
     TriMap  Map_;
     TriHeap Heap_;
+    
+    std::vector<BiqTriInequality> container;
+
+
     int nIneq_;      // rename to nCuts_? 
 
     /* L-BFGS-B Data */
@@ -110,7 +114,7 @@ public:
 
     inline int getNVar() const { return nVar_;}
     inline void setNVar( int nVar) { nVar_ = nVar;}
-    double GetObjective(){return f_;};
+    double GetObjective(){return floor(f_);}
 
     inline bool isMax() const { return max_problem_;}
     virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;

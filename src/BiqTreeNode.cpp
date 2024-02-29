@@ -56,9 +56,11 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     BiqModel * model = dynamic_cast<BiqModel *>(desc->model());
     
     bmaxProblem = model->isMax();
-
+    // make Fixing x[38] = 0 all other are free
+    //std::vector<BiqVarStatus> foo(60, BiqVarFree);
+    //foo.at(38) = BiqVarFixedToZero;
     const std::vector<BiqVarStatus> biqVarStatus = desc->getVarStati();
-    
+ 
     if(isRoot)
     {
         // try the brute force heuristic 
@@ -80,7 +82,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     //if(nFixed == model->getNVar)
 
     double valRelax = model->SDPbound(biqVarStatus, isRoot);
-
+    //exit(1);
     std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
     /*
     std::printf("%d: Quality: %f\t", desc->getBranchedOn(), desc->getQuality());

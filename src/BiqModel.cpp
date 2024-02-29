@@ -94,9 +94,9 @@ BiqModel::BiqModel(
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
 
-    std::vector<BiqTriInequality> container;
+    
     container.reserve(501);
-    Heap_ = TriHeap(std::less<BiqTriInequality>(), std::move(container));
+    
     
     nIneq_ = 0;
 
@@ -254,6 +254,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
 
+    Map_.clear();
     // 
     if(nVar_sub_ == 0)
     {
@@ -277,7 +278,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         // call BFGS solver
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
     
-        dRetBound = (max_problem_) ? f_ : -f_;
+        dRetBound = (max_problem_) ? floor(f_) : ceil(-f_);
         
         prune = pruneTest(dRetBound);
 
@@ -296,7 +297,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
         dGap = fabs(bestVal - dRetBound);
 
-        if( i+1 > MinNiter) 
+        if( i + 1 > MinNiter) 
         {
             bGiveUp = (fabs(f_ - dPrev_f) < 1.0) &&
                       (dAlpha  < 1e-4)           && 
@@ -1248,7 +1249,7 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     TriCuts::iterator itNextIneq;
 
 
-    
+    Heap_ = TriHeap(std::less<BiqTriInequality>(), std::move(container));
 
     // Fill the Heap_ with most violated cuts
     dRetVal = GetViolatedCuts();
@@ -1751,7 +1752,7 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
 void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
 {
     int bestVal = 0;
-
+    //dVal = 527.0;
     // The quality of a solution is the negative of the objective value
     //  since Alps consideres sols with lower quality values better.
     bestVal = static_cast<int>(broker()->getIncumbentValue());
@@ -1824,7 +1825,7 @@ bool BiqModel::pruneTest(double dBound)
         )
       )
     {
-        //std::printf("static_cast<int>(floor(%f))  <= %d \n",dBound, bestVal);
+        //std::printf("%f %d prune",dBound, bestVal);
         bRet = true;
     }
     //std::printf("bRet = %d \n",bRet);
