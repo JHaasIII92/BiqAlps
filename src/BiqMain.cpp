@@ -25,7 +25,8 @@ void readModel(std::string strFileName,
 
 int main(int argc, char * argv[])
 {
-    srand(time(NULL));
+    //srand(time(NULL));
+    srand(16);
 
     int iBlasThreads = 1;
     openblas_set_num_threads(iBlasThreads);

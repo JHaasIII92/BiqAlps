@@ -101,18 +101,20 @@ using BiqTriTuple = std::tuple<int,int,int,int>;
 using TriCuts = std::vector<BiqTriInequality>;
 
 
+/*
+// unordered_map test does not seem like it is worth using
 struct BiqTriTupleHash {
     std::size_t operator()(const BiqTriTuple& tuple) const {
-        // Combine the hash values of the tuple elements
-        return std::hash<int>()(std::get<0>(tuple)) ^
-               std::hash<int>()(std::get<1>(tuple)) ^
-               std::hash<int>()(std::get<2>(tuple)) ^
-               std::hash<int>()(std::get<3>(tuple));
+        int key;
+        int spacing = 100;
+        key = std::get<0>(tuple) + spacing + std::get<1>(tuple) + (spacing*2) + std::get<2>(tuple) + (spacing*3) + std::get<3>(tuple);
+        return std::hash<int>()(key);
     }
 };
 
+using TriMap  = std::unordered_map<BiqTriTuple, bool, BiqTriTupleHash>;
+*/
 
-//using TriMap  = std::unordered_map<BiqTriTuple, bool, BiqTriTupleHash>;
 using TriMap  = std::map<BiqTriTuple, bool>;
 using TriHeap = std::priority_queue<BiqTriInequality, std::vector<BiqTriInequality>, std::less<BiqTriInequality>>;
 

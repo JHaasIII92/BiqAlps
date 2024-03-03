@@ -167,13 +167,13 @@ private:
 
     double GetViolatedCuts();
 
-    double EvalInequalities(TriType triType, int ii, int jj, int kk);
+    inline double EvalInequalities(TriType triType, int ii, int jj, int kk);
 
     void PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracted, double dAlpha, double dTol, double dMinAllIneq, double dGap/*double dTime*/);
 
     bool isFeasibleSolution(std::vector<int> solution);
 
-    double EvalSolution(std::vector<int> solution);
+    double EvalSolution(std::vector<int> & solution);
 
     void UpdateSol(double dVal, std::vector<int> solution);
 

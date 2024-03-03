@@ -64,7 +64,6 @@ BiqModel::BiqModel(
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
     container.reserve(501);
-    Heap_ = TriHeap(std::less<BiqTriInequality>(), std::move(container));
     //Map_.reserve(MaxNineqAdded);
     nIneq_ = 0;
 
@@ -378,7 +377,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     double dMinTemp;
     double dBound;
     char task[60];
-    int iprint = -1;
+    int iprint = -10;
     char csave[60];
     int lsave[4];
     int isave[44];
@@ -1214,7 +1213,7 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     TriMap::iterator itMap;
     TriCuts::iterator itIneq;
     TriCuts::iterator itNextIneq;
-
+    Heap_ = TriHeap(std::less<BiqTriInequality>(), std::move(container));
 
     
 
@@ -1405,7 +1404,7 @@ double BiqModel::GetViolatedCuts()
     return dRetMinIneq;
 }
 
-double BiqModel::EvalInequalities(TriType triType, int ii, int jj, int kk)
+inline double BiqModel::EvalInequalities(TriType triType, int ii, int jj, int kk)
 {
     double dRetIneqVal = 0.0;
 
@@ -1446,7 +1445,7 @@ double BiqModel::EvalInequalities(TriType triType, int ii, int jj, int kk)
     return dRetIneqVal;
 }
 
-double BiqModel::EvalSolution(std::vector<int> solution)
+double BiqModel::EvalSolution(std::vector<int> & solution)
 {
     double dRetSol = 0.0;
     int i, j;

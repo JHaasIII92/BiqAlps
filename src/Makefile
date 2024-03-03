@@ -63,7 +63,7 @@ ADDLIBS = -lopenblas  -lgfortran
 ADDINCFLAGS =
 
 # Optimisation level 
-OPTI    = -O2
+OPTI    = -O3
 ##########################################################################
 #  Usually, you don't have to change anything below.  Note that if you   #
 #  change certain compiler options, you might have to recompile the      #
@@ -81,6 +81,10 @@ CXXFLAGS = $(OPTI) -DNDEBUG -Wall
 
 ifeq ($(debug), 1)
     CXXFLAGS = -g 
+endif
+
+ifeq ($(prof), 1)
+    CXXFLAGS = $(OPTI) -DNDEBUG -Wall -pg
 endif
 
 FFLAGS = $(OPTI) -frecursive -fomit-frame-pointer -fPIC
