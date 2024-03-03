@@ -62,6 +62,8 @@ ADDLIBS = -lopenblas  -lgfortran
 # CHANGEME: Additional flags for compilation (e.g., include flags)
 ADDINCFLAGS =
 
+# Optimisation level 
+OPTI    = -O2
 ##########################################################################
 #  Usually, you don't have to change anything below.  Note that if you   #
 #  change certain compiler options, you might have to recompile the      #
@@ -75,13 +77,13 @@ COIN_CXX_IS_CL = @COIN_CXX_IS_CL_TRUE@TRUE
 CXX = g++
 FC = gfortran
 # C++ Compiler options
-CXXFLAGS = -O2 -DNDEBUG  -pg
+CXXFLAGS = $(OPTI) -DNDEBUG -Wall
 
 ifeq ($(debug), 1)
     CXXFLAGS = -g 
 endif
 
-FFLAGS =   -O -Wall -fbounds-check -Wno-uninitialized
+FFLAGS = $(OPTI) -frecursive -fomit-frame-pointer -fPIC
 # additional C++ Compiler options for linking
 CXXLINKFLAGS =  -Wl,--rpath -Wl,/var/coin-or/dist/lib
 

@@ -21,11 +21,12 @@ class BiqModel: public AlpsModel
 {
 private:
     /* data */
+    int nVar_;                            // Number of variables
+    bool max_problem_;                      // Objective sense  
     double *Q_;                           // Dense Objective matrix   Q_[i + j*nVar_] to get the i,j
     Sparse Qs_;
     int N_;
-    int nVar_;                            // Number of variables
-
+    
     // array of array
     std::vector<Sparse> As_;     // Inequality constraint matrix   
     double *a_;                            // Right-hand-side inequality constraints
@@ -35,7 +36,7 @@ private:
     double *b_;                            // Right-hand-side equality constraints
     int mB_;                               // Number of equality constraints
                                  
-    bool max_problem_;                      // Objective sense 
+    
 
     /* sub model data*/
     double *X_;

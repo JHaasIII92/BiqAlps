@@ -75,7 +75,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
 
     // check all variables ar fixed..
     int nFixed = 0;
-    for(int i = 0; i < biqVarStatus.size();++i)
+    for(size_t i = 0; i < biqVarStatus.size();++i)
     {
         if(biqVarStatus.at(i) != BiqVarFree) ++nFixed;
     }
@@ -154,7 +154,6 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     
     std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > newNodes;
 
-    int nVar = model->getNVar();
     const std::vector<BiqVarStatus> oldStati = desc->getVarStati();
     std::vector<BiqVarStatus> newStatiLeft = oldStati;
     std::vector<BiqVarStatus> newStatiRight = oldStati;
@@ -205,14 +204,13 @@ AlpsKnowledge * BiqTreeNode::decode(AlpsEncoded & encoded) const{
 void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<BiqVarStatus> varStatus)
 {
     double dMaxVal = -INFINITY;
-    double dMinVal = INFINITY;
     bCloseToZero_ = false;
     branchOn_ = 0;
 
    // branching stratagy...
    // find the least fractional 
    // then flag for prioity ....
-   for(int i = 0; i < fracSol.size(); ++i)
+   for(size_t i = 0; i < fracSol.size(); ++i)
    {
         
         

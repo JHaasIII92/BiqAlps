@@ -94,9 +94,25 @@ public:
 
 
 
+
+
 using Sparse = std::vector<BiqSparseTriple>;
 using BiqTriTuple = std::tuple<int,int,int,int>;
 using TriCuts = std::vector<BiqTriInequality>;
+
+
+struct BiqTriTupleHash {
+    std::size_t operator()(const BiqTriTuple& tuple) const {
+        // Combine the hash values of the tuple elements
+        return std::hash<int>()(std::get<0>(tuple)) ^
+               std::hash<int>()(std::get<1>(tuple)) ^
+               std::hash<int>()(std::get<2>(tuple)) ^
+               std::hash<int>()(std::get<3>(tuple));
+    }
+};
+
+
+//using TriMap  = std::unordered_map<BiqTriTuple, bool, BiqTriTupleHash>;
 using TriMap  = std::map<BiqTriTuple, bool>;
 using TriHeap = std::priority_queue<BiqTriInequality, std::vector<BiqTriInequality>, std::less<BiqTriInequality>>;
 

@@ -3,11 +3,11 @@
 #include "AlpsKnowledge.h"
 #include "headers/BiqSolution.h"
 BiqModel::BiqModel(
-            int nVar, bool max_problem,
-            double *Q, Sparse Qs,
-            std::vector<Sparse> As, double *a,
-            std::vector<Sparse> Bs, double *b
-   ) 
+    int nVar, bool max_problem,
+    double *Q, Sparse Qs,
+    std::vector<Sparse> As, double *a,
+    std::vector<Sparse> Bs, double *b
+) 
     : nVar_(nVar),
       max_problem_(max_problem),
       Q_(Q),
@@ -26,37 +26,10 @@ BiqModel::BiqModel(
     
     /* DSYEVR optimal workspace query */
     M_ = 0;
-    int INFO = 0;
-    double *DWORK_SIZE = new double[1];
-    int *IWORK_SIZE = new int[1];
-    char JOBZ = 'N';    // eigenvalues and eigenvectors
-    char RANGE = 'A';
-    char UPLO = 'U';
-    double VL = 0.0;
-    double VU = 0.0;
-    int IL = 1;
-    int IU = 1;
-    double ABSTOL = 0.0;
-    int SIZE_FLAG = -1;
-
-    dsyevr_(
-        JOBZ, RANGE, UPLO, N_, X_, N_, 
-        VL, VU, IL, IU, ABSTOL, M_, 
-        W_, Z_, N_, ISUPPZ_, DWORK_SIZE, SIZE_FLAG, 
-        IWORK_SIZE, SIZE_FLAG, INFO);
-
-    if(INFO == 0)
-    {
-        nDWORK_ = static_cast<int>(DWORK_SIZE[0]);
-        DWORK_ = new double[nDWORK_];
-        nIWORK_ = IWORK_SIZE[0];
-        IWORK_ = new int[nIWORK_]; 
-    }
-    else
-    {
-        //TODO exit on error
-    }
-
+    nDWORK_ = 26 * N_;
+    nIWORK_ =  10 * N_;
+    DWORK_ = new double[nDWORK_];
+    IWORK_ = new int[nIWORK_]; 
     //temp 
     mA_ = As_.size();
     mB_ = Bs_.size() + N_;
@@ -85,19 +58,14 @@ BiqModel::BiqModel(
     iwa_ = new int[iwa_length];
 
     
-    delete[] IWORK_SIZE;
-    delete[] DWORK_SIZE;
-    
     AddDiagCons();
     AllocSubCons();
     SetConSparseSize();
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
-
-    
     container.reserve(501);
-    
-    
+    Heap_ = TriHeap(std::less<BiqTriInequality>(), std::move(container));
+    //Map_.reserve(MaxNineqAdded);
     nIneq_ = 0;
 
     // set some memory for the sTemp_sub_ matrix
@@ -222,16 +190,18 @@ void BiqModel::AllocSubCons()
 /// @return 
 double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 {
+    // reset cuts
+    Map_.clear();
     nIneq_ = 0;
+    //
     int i;
     int iStatus;
     int nbit = 0;
     int nAdded = 0;
     int nSubtracted = 0;
     int nbitalpha = 0;
-    int nHeurRuns = 25;
+    int nHeurRuns = 10;
     int len_y = mA_ + mB_ + nIneq_;
-    int incy = 1;
 
     double dMinAllIneq;
     double dAlpha = 10.0;
@@ -254,7 +224,9 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
 
-    Map_.clear();
+
+    
+
     // 
     if(nVar_sub_ == 0)
     {
@@ -317,11 +289,12 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
-
+    /*
         if(bRoot)
         {
             PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
         }
+        */
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nitermax)
         {
@@ -405,7 +378,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     double dMinTemp;
     double dBound;
     char task[60];
-    int iprint = -10;
+    int iprint = -1;
     char csave[60];
     int lsave[4];
     int isave[44];
@@ -417,7 +390,6 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     // set task = "START" and the rest of it to empty char
     strcpy(task, "START");
     for(i = 5; i < 60; ++i) task[i] = ' ';
-
 
     
     // Initialize y
@@ -448,7 +420,6 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     {
         factr = 0.0;
         pgtol = 0.0;
-
         // this calls the main L-BFGS-B function
         setulb_(len_y, mem, y_, binf_, bsup_, nbd_, f_, g_,
                 factr, pgtol, wa_, iwa_, task, iprint,
@@ -756,7 +727,7 @@ void BiqModel::A(int mode, double alpha)
 
             for(auto& it : As_sub_[ineqCon])
             {
-                if(it.i_ = it.j_)
+                if(it.i_ == it.j_)
                 {
                     g_[mB_sub + ineqCon] -= it.dVal_ * X_[it.i_ + it.j_ * N];
                 }
@@ -841,7 +812,6 @@ void BiqModel::B(int mode, double alpha)
     double dAlphaInv = 1.0 / alpha;
     double dTemp;
     int N = nVar_sub_ + 1;
-    int mA_sub = As_sub_.size();
     int mB_sub = Bs_sub_.size();
     //std::vector<BiqTriInequality>::iterator it = Bs_.begin();
 
@@ -1034,7 +1004,6 @@ void BiqModel::BuildConstraints(int nRows,
 void BiqModel::GetSubMatrix(std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
     int i, ii, jj;
-    int piOffset[nVar_];
 
     // init the submatrix zero out Q_sub_
     for(i = 0; i < nVar_sub_*nVar_sub_; ++i)
@@ -1066,7 +1035,7 @@ double BiqModel::GetSubMatrixSparse(Sparse sSourceMat,
 {
     double dRetNorm = 0.0;
     double dVal;
-    int ii, jj, pos = 0;
+    int ii, jj = 0;
     bool bBothFree;
     
     nnzAdded = 0;
@@ -1166,11 +1135,10 @@ double BiqModel::GetConstant(Sparse &sMat, std::vector<BiqVarStatus> vbiqVarStat
 
 void BiqModel::GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed)
 {
-    double dSum = 0.0;
     double dVal = 0.0;
     double dSolVal_i;
     double dSolVal_j;
-    int ii, jj, pos = 0;
+    int ii, jj = 0;
     bool bIfree, bJfree;
     
     for(int i = 0; i < nVar_sub_; ++i)
@@ -1219,7 +1187,7 @@ int BiqModel::GetOffset(std::vector<BiqVarStatus> vbiqVarStatus)
 {
     int nFixedRet = 0;
     
-    for(int i = 0; i < vOffset_.size(); ++i)
+    for(size_t i = 0; i < vOffset_.size(); ++i)
     {
         if(vbiqVarStatus.at(i) != BiqVarFree)
         {
@@ -1238,7 +1206,6 @@ int BiqModel::GetOffset(std::vector<BiqVarStatus> vbiqVarStatus)
 double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
 {
     double dRetVal = 0.0;
-    double dIneqVal;
     int yIndex;
     nSubtracted = 0;
     nAdded = 0;
@@ -1249,7 +1216,7 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
     TriCuts::iterator itNextIneq;
 
 
-    Heap_ = TriHeap(std::less<BiqTriInequality>(), std::move(container));
+    
 
     // Fill the Heap_ with most violated cuts
     dRetVal = GetViolatedCuts();
@@ -1273,7 +1240,8 @@ double BiqModel::UpdateInequalities(int &nAdded, int &nSubtracted)
                                 itIneq->j_, 
                                 itIneq->k_);
 
-            Map_.erase(bttTemp);
+            itMap = Map_.find(bttTemp);
+            itMap->second = false;
             //std::printf("-  ");
         }
         else
@@ -1370,7 +1338,7 @@ double BiqModel::GetViolatedCuts()
 { 
     double dRetMinIneq = INFINITY;
     double dTestIneq;
-    int i, j, k, type, count = 0;
+    int i, j, k, type = 0;
     // TODO make following data a param
     double dGapCuts = -5e-2;
     int nCuts = 500;
@@ -1406,7 +1374,7 @@ double BiqModel::GetViolatedCuts()
                                     dTestIneq,
                                     0.0);
 
-                    if(Heap_.size() < nCuts)
+                    if(static_cast<int>(Heap_.size()) < nCuts)
                     {
                         // (1) add cuts until full
                         // check if the cut has been added .. to the map
@@ -1515,7 +1483,7 @@ double BiqModel::EvalSolution(std::vector<int> solution)
 bool BiqModel::isFeasibleSolution(std::vector<int> solution)
 {
 
-    int m, i, j, k;
+    int i;
     double dSum, dTmp;
     bool bRet = true;
     // convert to {1, -1}
@@ -1583,8 +1551,7 @@ double BiqModel::primalHeuristic()
     double gamma;
     double dRand;
     double dTempEval;
-    bool bTest;
-    //srand(2016);
+    
     for(gamma = 0.0; gamma < 1.0; gamma += 0.01)
     {
         for(auto &it: viSolution_1_)
@@ -1620,24 +1587,18 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
     double dPlaneNorm;
     double dPlaneInvNorm;
     double sca;
-    double dTmpVal;
     double dTempEval;
     double dBestVal;
 
     int index;
-    int bestVal = 0;
     int subN = nVar_sub_+1;
-    //srand(2016);
+
     std::vector<double> hyperPlane;
 
     hyperPlane.resize(M_);
 
     viSolution_1_.at(nVar_) = 1;
     viSolution_2_.at(nVar_) = 1;
-
-    // temp have a solutin vector
-    bool bTryToUpdate = false;
-
     
     dBestVal = static_cast<int>(broker()->getIncumbentValue());
     if(max_problem_)
@@ -1765,12 +1726,12 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
     if(max_problem_ && dVal > bestVal)
     {
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dVal);
-        printf("Beta updated => %f\n",-dVal);
+        //printf("Beta updated => %f\n",-dVal);
     }
     else if(!max_problem_ && dVal < bestVal)
     {     
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
-        printf("Beta updated => %f\n",dVal);
+        //printf("Beta updated => %f\n",dVal);
     }   
     else
     {
@@ -1780,7 +1741,6 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
 
 std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus)
 {
-    int nFixed = GetOffset(vbiqVarStatus);
     int ii, jj;
     double Xij;
 

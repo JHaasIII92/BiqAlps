@@ -11,3 +11,7 @@ To use:
 - You will see additaonla options to select I have not gone through them
   and I do not think there is a need for any.
 - cd src; make; ./Biq
+
+
+When profiling with -pg
+gprof ./Biq gmon.out > analysis.txt

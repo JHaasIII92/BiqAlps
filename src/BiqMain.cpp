@@ -77,11 +77,11 @@ void readModel(std::string strFileName,
                 std::vector<Sparse> & As, double * &a,
                 std::vector<Sparse> & Bs, double * &b)
 {
-    int N;
-    int nCon; 
-    int nEqCon;
-    int nInEqCon;
-    int nBlocks;
+    int N = 0;
+    int nCon = 0; 
+    int nEqCon = 0;
+    int nInEqCon = 0;
+    int nBlocks= 0;
     int pos_a = 0;
     int pos_b = 0;
     int pos_rhs = 0;
@@ -146,8 +146,6 @@ void readModel(std::string strFileName,
     Q = new double[N*N];
     
     // the next line will have the RHS if any cons
-    if(nCon > 0)
-    {
         // add space to stor the data
         Bs.resize(nEqCon);
         As.resize(nInEqCon);
@@ -165,7 +163,6 @@ void readModel(std::string strFileName,
             myFile >> rhs[i];
         }
         //myFile >> strLine;
-    }
 
     getline (myFile, strLine);
     // getline (myFile, strLine);
@@ -273,7 +270,7 @@ void readModel(std::string strFileName,
                 FillSparseMatrix(Qs, tmpMatrix0);
                 //PrintSparseMatrix(Qs);
             }
-            else if(!bInIneq)
+            else if(!bInIneq) 
             {
                 
                 Sparse sparseCon;
@@ -286,7 +283,7 @@ void readModel(std::string strFileName,
                 ++pos_b;
                 ++pos_rhs; 
             }
-            else
+            else 
             {
                 Sparse sparseCon;
                 FillSparseMatrix(sparseCon, tmpMatrix0);
