@@ -199,7 +199,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     int nAdded = 0;
     int nSubtracted = 0;
     int nbitalpha = 0;
-    int nHeurRuns = 10;
+    int nHeurRuns = 10*nVar_sub_;
     int len_y = mA_ + mB_ + nIneq_;
 
     double dMinAllIneq;
@@ -230,7 +230,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     if(nVar_sub_ == 0)
     {
         dRetBound = Q_sub_[0];
-        std::printf("On a leaf bound is: %f\n", dRetBound);
+        //std::printf("On a leaf bound is: %f\n", dRetBound);
         return dRetBound;
     }
 
@@ -288,12 +288,12 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
-    /*
+    
         if(bRoot)
         {
             PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
         }
-        */
+        
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nitermax)
         {
@@ -1580,7 +1580,8 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
 {
     // update... lets keep track of the best solution
     // and only at the end attempt to add it....
-
+    // if no cons then always feasible might save time!
+    // Check the isfeasible somthing is wrong.. 
 
     double dRetBest = -1e+9;
     double dPlaneNorm;
@@ -1592,6 +1593,8 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
     int index;
     int subN = nVar_sub_+1;
 
+    bool bHasBest;
+
     std::vector<double> hyperPlane;
 
     hyperPlane.resize(M_);
@@ -1600,10 +1603,20 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
     viSolution_2_.at(nVar_) = 1;
     
     dBestVal = static_cast<int>(broker()->getIncumbentValue());
+    
     if(max_problem_)
     {
         dBestVal = -dBestVal;
     }
+
+    if(dBestVal == 2147483648)
+    {
+        bHasBest = false;
+    }
+
+
+
+
 
     for(int k = 0; k < nPlanes; ++k)
     {
@@ -1681,7 +1694,7 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
         {
             dTempEval = EvalSolution(viSolution_1_);
             //std::printf("%f\n", dTempEval);
-            if(dTempEval > dBestVal)
+            if(!bHasBest || dTempEval > dBestVal)
             {
                 dBestVal = dTempEval;
                 UpdateSol(dTempEval, viSolution_1_);
@@ -1692,7 +1705,7 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
         {
             dTempEval = EvalSolution(viSolution_2_);
             //std::printf("%f\n", dTempEval);
-            if(dTempEval > dBestVal)
+            if(!bHasBest || dTempEval > dBestVal)
             {
                 dBestVal = dTempEval;
                 UpdateSol(dTempEval, viSolution_2_);

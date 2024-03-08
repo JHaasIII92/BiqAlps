@@ -32,9 +32,9 @@ int main(int argc, char * argv[])
     openblas_set_num_threads(iBlasThreads);
 
     //std::string strDataFileName = std::string strDataFileName = argv[1];
-    std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/max-cut/examples/g05_60.4.bc";
+    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/max-cut/examples/g05_60.4.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/sonetgr17.bc";
-    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_prod.bc";
+    std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_prod.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_square.bc";
 
@@ -100,6 +100,7 @@ void readModel(std::string strFileName,
     int int_max_prob;
 
     double dBcVal;
+    double dtmp;
     
     std::vector<double> tmpMatrix0;
     std::string strLine;
@@ -153,18 +154,17 @@ void readModel(std::string strFileName,
         b = new double[nEqCon];
         a = new double[nInEqCon];
         rhs = new double[nCon];
-
+    
         // get the data 
-        //getline (myFile, strLine);
-
+        double dTmpRHS;
         // read it into 
         for(int i = 0; i < nCon; ++i)
         {
-            //std::fscanf(myFile, "%lf", &(rhs[i]));
-            myFile >> rhs[i];
+            myFile >> rhs[i];   
+            //std::printf("%f\n",rhs[i]);         
         }
         //myFile >> strLine;
-
+    if(nCon > 0) getline (myFile, strLine);
     getline (myFile, strLine);
     // getline (myFile, strLine);
     // next we are going to read in matrix data
@@ -175,7 +175,7 @@ void readModel(std::string strFileName,
     std::sscanf(strLine.c_str(), "%d %d %d %d %lf \n", &numMat, &numBlock, &i_index, &j_index, &dBcVal);
     --i_index;
     --j_index;
-
+    //std::printf("%d %d %d %d %lf \n", numMat, numBlock, i_index, j_index, dBcVal); 
         if(numBlock == 2)
         {
             bInIneq = true;
@@ -192,7 +192,7 @@ void readModel(std::string strFileName,
             }
             // case in quad or
             // i_index < N - 1 && j_index < N - 1
- if(i_index < N-1 && j_index < N-1 && i_index != j_index)
+            if(i_index < N-1 && j_index < N-1 && i_index != j_index)
             {
                 tmpMatrix0.at(i_index + j_index*N) += 0.25 * dBcVal;
                 tmpMatrix0.at(j_index + i_index*N) += 0.25 * dBcVal;
@@ -242,6 +242,7 @@ void readModel(std::string strFileName,
         if(getline(myFile, strLine))
         {
             std::sscanf(strLine.c_str(), "%d %d %d %d %lf \n", &numMat, &numBlock, &i_index, &j_index, &dBcVal);
+            //std::printf("%d %d %d %d %lf \n", numMat, numBlock, i_index, j_index, dBcVal);
         }
         else
         {
@@ -257,30 +258,24 @@ void readModel(std::string strFileName,
                     it = -it;
                 }
             }
-
-            //printOutMatrix(tmpMatrix0);
+            //PrintMatrix(tmpMatrix0);
+            //std::printf("\n\n");
             // now make a sparse matrix
             if(numPrevMat == 0)
             {
                 for(int i = 0; i < N*N; ++i)
                 {
-                    dBcVal = tmpMatrix0.at(i);
-                    Q[i] = dBcVal;
+                    Q[i] = tmpMatrix0.at(i);
                 }
 
                 FillSparseMatrix(Qs, tmpMatrix0);
-                //PrintSparseMatrix(Qs);
             }
             else if(!bInIneq) 
             {
-                
                 Sparse sparseCon;
                 FillSparseMatrix(sparseCon, tmpMatrix0);
                 Bs.at(pos_b) = sparseCon;
                 b[pos_b] = rhs[pos_rhs];
-
-                //PrintSparseMatrix(Bs.at(pos_b));
-
                 ++pos_b;
                 ++pos_rhs; 
             }
@@ -326,7 +321,8 @@ void readModel(std::string strFileName,
         {
             --i_index;
             --j_index;
-            if(numMat == 0 && !max_problem)
+            //std::printf("%d %d %d %d %lf \n", numMat, numBlock, i_index, j_index, dBcVal); 
+                        if(numMat == 0 && !max_problem)
             {
                 dBcVal = -dBcVal;
             }
