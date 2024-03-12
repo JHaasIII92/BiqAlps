@@ -1609,7 +1609,7 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
         dBestVal = -dBestVal;
     }
 
-    if(dBestVal == 2147483648)
+    if(dBestVal == INFVAL)
     {
         bHasBest = false;
     }
@@ -1725,7 +1725,7 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
 void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
 {
     int bestVal = 0;
-    //dVal = 527.0;
+    
     // The quality of a solution is the negative of the objective value
     //  since Alps consideres sols with lower quality values better.
     bestVal = static_cast<int>(broker()->getIncumbentValue());
@@ -1785,7 +1785,7 @@ bool BiqModel::pruneTest(double dBound)
         bestVal = -bestVal;
     }
     
-    if(bestVal == -2147483648)
+    if(bestVal == -INFVAL)
     {
         bRet = false;
     }

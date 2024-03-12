@@ -15,6 +15,7 @@
 #define MaxNineqAdded 10000
 #define mmax 10
 #define MAXITER 1000
+#define INFVAL 2147483648
 
 #define FREE_DATA(data)\
     if(data)\
