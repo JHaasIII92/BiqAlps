@@ -54,11 +54,6 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     // BiqModel *model=dynamic_cast<BiqModel *>(broker()->getModel()); // maybe do this?
     // get a pointer to out model class
     BiqModel * model = dynamic_cast<BiqModel *>(desc->model());
-    
-    std::vector<int> solution(model->getNVar(),0);
-    double dVal =-9594.0;
-    BiqSolution* biqSol = new BiqSolution( this, solution, dVal);
-    broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
 
     bmaxProblem = model->isMax();
     // make Fixing x[38] = 0 all other are free
