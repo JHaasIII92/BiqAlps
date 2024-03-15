@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:20.04
 
 
 ENV TZ="America/New_York"
