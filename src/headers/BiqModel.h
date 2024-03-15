@@ -31,12 +31,12 @@ private:
     std::vector<Sparse> As_;     // Inequality constraint matrix   
     double *a_;                            // Right-hand-side inequality constraints
     int mA_;                               // Number of inequality constraints 
+    std::vector<bool> bInequalityIsLinear_;
 
     std::vector<Sparse> Bs_;     // Equality constraint matrix
     double *b_;                            // Right-hand-side equality constraints
     int mB_;                               // Number of equality constraints
-                                 
-    
+    std::vector<bool> bEqualityIsLinear_;
 
     /* sub model data*/
     double *X_;
@@ -106,7 +106,9 @@ public:
     BiqModel(int nVar, bool max_problem,
              double *Q, Sparse Qs,
              std::vector<Sparse> As, double *a,
-             std::vector<Sparse> Bs, double *b);
+             std::vector<bool> bInequalityIsLinear,
+             std::vector<Sparse> Bs, double *b,
+             std::vector<bool> bEqualityIsLinear);
     ~BiqModel();
   /** Create the root node. Default: do nothing */
   virtual AlpsTreeNode * createRoot(){

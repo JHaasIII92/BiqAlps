@@ -1,6 +1,7 @@
 *.o
 .DS_Store
-*.txt
 *.bc
 *.a
 gmon.out
+Biq
+biqcrunch

@@ -6,7 +6,9 @@ BiqModel::BiqModel(
     int nVar, bool max_problem,
     double *Q, Sparse Qs,
     std::vector<Sparse> As, double *a,
-    std::vector<Sparse> Bs, double *b
+    std::vector<bool> bInequalityIsLinear,
+    std::vector<Sparse> Bs, double *b,
+    std::vector<bool> bEqualityIsLinear
 ) 
     : nVar_(nVar),
       max_problem_(max_problem),
@@ -14,7 +16,9 @@ BiqModel::BiqModel(
       Qs_(Qs),
       As_(As),
       a_(a),
-      Bs_(Bs)
+      bInequalityIsLinear_(bInequalityIsLinear),
+      Bs_(Bs),
+      bEqualityIsLinear_(bEqualityIsLinear)
 
 {
     N_ = nVar_ + 1;
@@ -63,7 +67,7 @@ BiqModel::BiqModel(
     SetConSparseSize();
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
-    container.reserve(501);
+    container.reserve(500001);
     //Map_.reserve(MaxNineqAdded);
     nIneq_ = 0;
 
@@ -1340,7 +1344,7 @@ double BiqModel::GetViolatedCuts()
     int i, j, k, type = 0;
     // TODO make following data a param
     double dGapCuts = -5e-2;
-    int nCuts = 500;
+    int nCuts = 50000;
     BiqTriInequality btiTemp;
     BiqTriTuple bttTemp;
     TriMap::iterator itMap;
@@ -1511,6 +1515,7 @@ bool BiqModel::isFeasibleSolution(std::vector<int> solution)
         // check that the sum matches the rhs
         if(dSum != b_[i])
         {
+            //std::printf("dSum = %f \t b_[%d] = %f\n", dSum, i, b_[i]);
             bRet = false;
             break;
         }
@@ -1535,6 +1540,7 @@ bool BiqModel::isFeasibleSolution(std::vector<int> solution)
         // check that the sum is grater than rhs
         if(dSum > a_[i])
         {
+            //std::printf("dSum = %f \t a_[%d] = %f\n", dSum, i, a_[i]);
             bRet = false;
             break;
         }

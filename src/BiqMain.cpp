@@ -21,7 +21,9 @@ void readModel(char* strFileName,
                 int & nVar, bool & max_problem,
                 double * &Q, Sparse & Qs,
                 std::vector<Sparse> & As, double * &a,
-                std::vector<Sparse> & Bs, double * &b);
+                std::vector<bool> & bInequalityIsLinear,
+                std::vector<Sparse> & Bs, double * &b,
+                std::vector<bool> & bEqualityIsLinear);
 
 int main(int argc, char * argv[])
 {
@@ -45,16 +47,31 @@ int main(int argc, char * argv[])
     Sparse Qs;
     std::vector<Sparse> As;
     double *a;
+    std::vector<bool> bInequalityIsLinear;
     std::vector<Sparse> Bs;
     double *b;
+    std::vector<bool> bEqualityIsLinear;
     
-    readModel(argv[1], nVar, max_problem, Q, Qs, As, a, Bs, b);
+    readModel(argv[1], nVar, max_problem, Q, Qs, As, a, bInequalityIsLinear, Bs, b, bEqualityIsLinear);
+    /*
+    for(bool it: bInequalityIsLinear)
+    {
+        std::printf("%d\n", int(it));
+    }
+    std::printf("\n");
+    for(bool it: bEqualityIsLinear)
+    {
+        std::printf("%d\n", int(it));
+    }
+    exit(1);
+    */
+
     //std::printf("size of enq con %d",Bs.size());
     //print_vector(b, Bs.size());
     //PrintSparseMatrix(Bs.at(2));
     //PrintMatrix(Q, nVar+1,nVar+1);
     //exit(1);
-    BiqModel model(nVar, max_problem, Q, Qs, As, a, Bs, b);
+    BiqModel model(nVar, max_problem, Q, Qs, As, a, bInequalityIsLinear, Bs, b, bEqualityIsLinear);
     #ifdef COIN_HAS_MPI
           AlpsKnowledgeBrokerMPI broker(0, nullptr, model);
     #else
@@ -79,7 +96,9 @@ void readModel(char* strFileName,
                 int & nVar, bool & max_problem,
                 double * &Q, Sparse & Qs,
                 std::vector<Sparse> & As, double * &a,
-                std::vector<Sparse> & Bs, double * &b)
+                std::vector<bool> & bInequalityIsLinear,
+                std::vector<Sparse> & Bs, double * &b,
+                std::vector<bool> & bEqualityIsLinear)
 {
     int N = 0;
     int nCon = 0; 
@@ -93,6 +112,7 @@ void readModel(char* strFileName,
     
     bool bInIneq = false;
     bool bInGeq = false;
+    bool bLinear = true;
 
     // data for the matrix read in
     int numMat;
@@ -154,6 +174,8 @@ void readModel(char* strFileName,
         // add space to stor the data
         Bs.resize(nEqCon);
         As.resize(nInEqCon);
+        bEqualityIsLinear.resize(nEqCon);
+        bInequalityIsLinear.resize(nInEqCon);
         b = new double[nEqCon];
         a = new double[nInEqCon];
         rhs = new double[nCon];
@@ -193,6 +215,12 @@ void readModel(char* strFileName,
             {
                 dBcVal = -dBcVal;
             }
+
+            if (i_index < N-1 && j_index < N-1)
+            {
+                bLinear = false;
+            }
+            
             // case in quad or
             // i_index < N - 1 && j_index < N - 1
             if(i_index < N-1 && j_index < N-1 && i_index != j_index)
@@ -277,8 +305,17 @@ void readModel(char* strFileName,
             {
                 Sparse sparseCon;
                 FillSparseMatrix(sparseCon, tmpMatrix0);
+
+                // If linear, add product constraints
+                if(bLinear)
+                {
+                    std::printf("Adding linear constraints b[%d] = rhs[%d]\n", pos_b, pos_rhs);
+                    
+                }
+
                 Bs.at(pos_b) = sparseCon;
                 b[pos_b] = rhs[pos_rhs];
+                bEqualityIsLinear.at(pos_b) = bLinear;
                 ++pos_b;
                 ++pos_rhs; 
             }
@@ -295,6 +332,7 @@ void readModel(char* strFileName,
                 {
                     a[pos_a] = rhs[pos_rhs];
                 }
+                bInequalityIsLinear.at(pos_a) = bLinear;
                 ++pos_a;
                 ++pos_rhs; 
             }
@@ -305,6 +343,7 @@ void readModel(char* strFileName,
                 zeroOutMatrix(tmpMatrix0);
                 bInIneq = false;
                 bInGeq = false;
+                bLinear = true;
             }
             else
             {
@@ -329,6 +368,12 @@ void readModel(char* strFileName,
             {
                 dBcVal = -dBcVal;
             }
+
+            if (i_index < N-1 && j_index < N-1)
+            {
+                bLinear = false;
+            }
+
             // case in quad or
             // i_index < N - 1 && j_index < N - 1
             if(i_index < N-1 && j_index < N-1 && i_index != j_index)
