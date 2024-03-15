@@ -17,7 +17,7 @@
 #include "headers/BiqModel.h"
 
 
-void readModel(std::string strFileName, 
+void readModel(char* strFileName, 
                 int & nVar, bool & max_problem,
                 double * &Q, Sparse & Qs,
                 std::vector<Sparse> & As, double * &a,
@@ -31,8 +31,8 @@ int main(int argc, char * argv[])
     int iBlasThreads = 1;
     openblas_set_num_threads(iBlasThreads);
 
-    //std::string strDataFileName = std::string strDataFileName = argv[1];
-    std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/max-cut/examples/g05_60.4.bc";
+    
+    //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/max-cut/examples/g05_60.4.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/sonetgr17.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob_prod.bc";
     //std::string strDataFileName = "/workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/generic/examples/randprob.bc";
@@ -48,7 +48,7 @@ int main(int argc, char * argv[])
     std::vector<Sparse> Bs;
     double *b;
     
-    readModel(strDataFileName, nVar, max_problem, Q, Qs, As, a, Bs, b);
+    readModel(argv[1], nVar, max_problem, Q, Qs, As, a, Bs, b);
     //std::printf("size of enq con %d",Bs.size());
     //print_vector(b, Bs.size());
     //PrintSparseMatrix(Bs.at(2));
@@ -56,9 +56,9 @@ int main(int argc, char * argv[])
     //exit(1);
     BiqModel model(nVar, max_problem, Q, Qs, As, a, Bs, b);
     #ifdef COIN_HAS_MPI
-          AlpsKnowledgeBrokerMPI broker(argc, argv, model);
+          AlpsKnowledgeBrokerMPI broker(0, nullptr, model);
     #else
-         AlpsKnowledgeBrokerSerial broker(argc, argv, model);
+         AlpsKnowledgeBrokerSerial broker(0, nullptr,  model);
     #endif
 
         broker.registerClass(AlpsKnowledgeTypeModel,new BiqModel());
@@ -75,7 +75,7 @@ int main(int argc, char * argv[])
 
 }
 
-void readModel(std::string strFileName, 
+void readModel(char* strFileName, 
                 int & nVar, bool & max_problem,
                 double * &Q, Sparse & Qs,
                 std::vector<Sparse> & As, double * &a,
@@ -113,7 +113,7 @@ void readModel(std::string strFileName,
     
 
     std::ifstream myFile(strFileName);
-    std::printf("Reading in: %s \n", strFileName.c_str());
+    std::printf("Reading in: %s \n", strFileName);
     // Read out each comment for now
     while (getline (myFile, strLine) &&
             (strLine.at(0) == ';'   ||
