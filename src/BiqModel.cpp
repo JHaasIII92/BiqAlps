@@ -6,9 +6,9 @@ BiqModel::BiqModel(
     int nVar, bool max_problem,
     double *Q, Sparse Qs,
     std::vector<Sparse> As, double *a,
-    std::vector<bool> bInequalityIsLinear,
+    std::vector<int> iInequalityIsLinear,
     std::vector<Sparse> Bs, double *b,
-    std::vector<bool> bEqualityIsLinear
+    std::vector<int> iEqualityIsLinear
 ) 
     : nVar_(nVar),
       max_problem_(max_problem),
@@ -16,11 +16,12 @@ BiqModel::BiqModel(
       Qs_(Qs),
       As_(As),
       a_(a),
-      bInequalityIsLinear_(bInequalityIsLinear),
+      iInequalityIsLinear_(iInequalityIsLinear),
       Bs_(Bs),
-      bEqualityIsLinear_(bEqualityIsLinear)
+      iEqualityIsLinear_(iEqualityIsLinear)
 
 {
+    std::printf("top of con\n");
     N_ = nVar_ + 1;
     ISUPPZ_ = new int[2*N_];
     X_ = new double[N_*N_];
@@ -35,13 +36,14 @@ BiqModel::BiqModel(
     DWORK_ = new double[nDWORK_];
     IWORK_ = new int[nIWORK_]; 
     //temp 
+    std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
     mA_ = As_.size();
-    mB_ = Bs_.size() + N_;
+    mB_ = Bs_.size() + N_ + iEqualityIsLinear.size()*nVar_;
     a_sub_ = new double[mA_];
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
     vOffset_.resize(nVar_, 0);
-    b_     = new double[mB_ + N_];
+    b_     = new double[mB_];
     //FillSparseMatrix(Qs_,Q_,N_);
     // Copy the b vector in to the first Bs_.size() entries
     std::copy(b, b + Bs_.size(), b_);
@@ -62,7 +64,9 @@ BiqModel::BiqModel(
     iwa_ = new int[iwa_length];
 
     
+    
     AddDiagCons();
+    AddProdCons();
     AllocSubCons();
     SetConSparseSize();
     // Set cut data 
@@ -161,6 +165,75 @@ void BiqModel::AddDiagCons()
     }
 }
 
+/// @brief 
+///
+///
+void BiqModel::AddProdCons()
+{
+
+    Sparse bstTemp;
+    int ii, jj;
+    int posProdCon = Bs_.size() + N_;
+    double dTemp;
+    double dLinear = 0;
+    // lopp over the the 
+    std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
+
+    for(int r = 0; r < nVar_; ++r)
+    {
+        // iEqualityIsLinear_ has positions of linear cons 
+
+        // all data in sparce con is linear or constant
+        // need to add a new sparsecon and push it to Bs_
+        for(size_t k = 0; k < iEqualityIsLinear_.size(); ++k)
+        {
+
+            std::printf("pos of the con %d\n",iEqualityIsLinear_.at(k));
+            for(auto & it: Bs_.at(iEqualityIsLinear_.at(k)))
+            {
+                ii = it.i_;
+                jj = it.j_;
+                dTemp = it.dVal_;
+                // check if linear
+                // case one ii is linear
+                if(jj < nVar_)
+                {
+                    
+                    if(jj == r)
+                    {
+                        bstTemp.push_back(BiqSparseTriple(r,jj,dTemp));
+                    }
+                    else
+                    {
+                        bstTemp.push_back(BiqSparseTriple(r,jj,0.5*dTemp));
+                    }
+                }
+                // case we are in const
+                else
+                {
+                    bstTemp.push_back(BiqSparseTriple(r,nVar_,0.5*dTemp));
+                }
+
+            }
+            //dLinear -= b_[0];
+            
+            Bs_.push_back(bstTemp);
+            
+            /*()*/
+            std::printf("\n og con");
+            PrintSparseMatrix(Bs_.at(iEqualityIsLinear_.at(k)));
+            std::printf("\n prod con");
+            PrintSparseMatrix(bstTemp);
+            std::printf("\n");
+            bstTemp.clear();
+            dLinear = 0;
+            b_[posProdCon] = 0;
+            posProdCon++;
+        }
+    }
+    std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
+    //exit(1);
+}
 /// @brief use this method
 /// to set the size of each sub
 /// con sparse matrix

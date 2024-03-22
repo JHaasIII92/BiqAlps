@@ -21,9 +21,9 @@ void readModel(char* strFileName,
                 int & nVar, bool & max_problem,
                 double * &Q, Sparse & Qs,
                 std::vector<Sparse> & As, double * &a,
-                std::vector<bool> & bInequalityIsLinear,
+                std::vector<int> & iInequalityIsLinear,
                 std::vector<Sparse> & Bs, double * &b,
-                std::vector<bool> & bEqualityIsLinear);
+                std::vector<int> & iEqualityIsLinear);
 
 int main(int argc, char * argv[])
 {
@@ -47,12 +47,12 @@ int main(int argc, char * argv[])
     Sparse Qs;
     std::vector<Sparse> As;
     double *a;
-    std::vector<bool> bInequalityIsLinear;
+    std::vector<int> iInequalityIsLinear;
     std::vector<Sparse> Bs;
     double *b;
-    std::vector<bool> bEqualityIsLinear;
-    
-    readModel(argv[1], nVar, max_problem, Q, Qs, As, a, bInequalityIsLinear, Bs, b, bEqualityIsLinear);
+    std::vector<int> iEqualityIsLinear;
+    std::printf("pre readin\n");
+    readModel(argv[1], nVar, max_problem, Q, Qs, As, a, iInequalityIsLinear, Bs, b, iEqualityIsLinear);
     /*
     for(bool it: bInequalityIsLinear)
     {
@@ -71,7 +71,8 @@ int main(int argc, char * argv[])
     //PrintSparseMatrix(Bs.at(2));
     //PrintMatrix(Q, nVar+1,nVar+1);
     //exit(1);
-    BiqModel model(nVar, max_problem, Q, Qs, As, a, bInequalityIsLinear, Bs, b, bEqualityIsLinear);
+    std::printf("pre con\n");
+    BiqModel model(nVar, max_problem, Q, Qs, As, a, iInequalityIsLinear, Bs, b, iEqualityIsLinear);
     #ifdef COIN_HAS_MPI
           AlpsKnowledgeBrokerMPI broker(0, nullptr, model);
     #else
@@ -96,9 +97,9 @@ void readModel(char* strFileName,
                 int & nVar, bool & max_problem,
                 double * &Q, Sparse & Qs,
                 std::vector<Sparse> & As, double * &a,
-                std::vector<bool> & bInequalityIsLinear,
+                std::vector<int> & iInequalityIsLinear,
                 std::vector<Sparse> & Bs, double * &b,
-                std::vector<bool> & bEqualityIsLinear)
+                std::vector<int> & iEqualityIsLinear)
 {
     int N = 0;
     int nCon = 0; 
@@ -174,8 +175,6 @@ void readModel(char* strFileName,
         // add space to stor the data
         Bs.resize(nEqCon);
         As.resize(nInEqCon);
-        bEqualityIsLinear.resize(nEqCon);
-        bInequalityIsLinear.resize(nInEqCon);
         b = new double[nEqCon];
         a = new double[nInEqCon];
         rhs = new double[nCon];
@@ -309,13 +308,15 @@ void readModel(char* strFileName,
                 // If linear, add product constraints
                 if(bLinear)
                 {
-                    std::printf("Adding linear constraints b[%d] = rhs[%d]\n", pos_b, pos_rhs);
-                    
+                    std::printf("pre push back\n");
+                    iEqualityIsLinear.push_back(pos_b);
+                    std::printf("post push back\n");
+
                 }
 
                 Bs.at(pos_b) = sparseCon;
                 b[pos_b] = rhs[pos_rhs];
-                bEqualityIsLinear.at(pos_b) = bLinear;
+                
                 ++pos_b;
                 ++pos_rhs; 
             }
@@ -332,7 +333,13 @@ void readModel(char* strFileName,
                 {
                     a[pos_a] = rhs[pos_rhs];
                 }
-                bInequalityIsLinear.at(pos_a) = bLinear;
+                if(bLinear)
+                {
+                    std::printf("pre push back\n");
+                    iInequalityIsLinear.push_back(pos_b);
+                    std::printf("post push back\n");
+                }
+                
                 ++pos_a;
                 ++pos_rhs; 
             }
