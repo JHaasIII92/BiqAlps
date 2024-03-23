@@ -38,7 +38,8 @@ BiqModel::BiqModel(
     //temp 
     std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
     mA_ = As_.size();
-    mB_ = Bs_.size() + N_ + iEqualityIsLinear.size()*nVar_;
+    mB_ = Bs_.size() + N_ ;
+    mB_ += iEqualityIsLinear_.size()*nVar_;
     a_sub_ = new double[mA_];
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
@@ -170,38 +171,36 @@ void BiqModel::AddDiagCons()
 ///
 void BiqModel::AddProdCons()
 {
-
     Sparse bstTemp;
     int ii, jj;
-    int posProdCon = Bs_.size() + N_;
+    int posProdCon = Bs_.size();
     double dTemp;
     double dLinear = 0;
     // lopp over the the 
-    std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
+    std::printf("mB_ = %d \t Size(Bs_) = %d \t Number of Diag Cons = %d \t Equality Cons = %d\n", mB_, Bs_.size(), N_, iEqualityIsLinear_.size());
 
-    for(int r = 0; r < nVar_; ++r)
+    // k = positon of equality con
+    for(size_t k = 0; k < iEqualityIsLinear_.size(); ++k)
     {
-        // iEqualityIsLinear_ has positions of linear cons 
-
-        // all data in sparce con is linear or constant
-        // need to add a new sparsecon and push it to Bs_
-        for(size_t k = 0; k < iEqualityIsLinear_.size(); ++k)
+        // r = variable index
+        for(int r = 0; r < nVar_; ++r)
         {
 
-            std::printf("pos of the con %d\n",iEqualityIsLinear_.at(k));
+            //std::printf("pos of the con %d\n",iEqualityIsLinear_.at(k));
             for(auto & it: Bs_.at(iEqualityIsLinear_.at(k)))
             {
                 ii = it.i_;
                 jj = it.j_;
                 dTemp = it.dVal_;
-                // check if linear
-                // case one ii is linear
+                // dTemp xj xr
+                // if linear 
                 if(jj < nVar_)
                 {
-                    
+                    dTemp *= 2;
+                    // on the diagonal
                     if(jj == r)
                     {
-                        bstTemp.push_back(BiqSparseTriple(r,jj,dTemp));
+                        bstTemp.push_back(BiqSparseTriple(jj,jj,dTemp));
                     }
                     else
                     {
@@ -211,23 +210,33 @@ void BiqModel::AddProdCons()
                 // case we are in const
                 else
                 {
-                    bstTemp.push_back(BiqSparseTriple(r,nVar_,0.5*dTemp));
+                    dLinear = dTemp;
+                    
                 }
 
             }
-            //dLinear -= b_[0];
+            std::printf("Const = %f     RHS = %f \n", dLinear,  b_[k]);
+            dLinear -= b_[k];
+            if(dLinear != 0.0)
+            {
+                bstTemp.push_back(BiqSparseTriple(nVar_, r,0.5*dLinear));
+            }
             
+            // add data
             Bs_.push_back(bstTemp);
+            b_[posProdCon] = 0;
             
-            /*()*/
+            //
             std::printf("\n og con");
             PrintSparseMatrix(Bs_.at(iEqualityIsLinear_.at(k)));
             std::printf("\n prod con");
-            PrintSparseMatrix(bstTemp);
+            PrintSparseMatrix(Bs_.at(posProdCon));
             std::printf("\n");
+            
+            // reset tmp data
             bstTemp.clear();
             dLinear = 0;
-            b_[posProdCon] = 0;
+            // 
             posProdCon++;
         }
     }
@@ -273,6 +282,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     int i;
     int iStatus;
     int nbit = 0;
+    int nFuncEvals = 0;
     int nAdded = 0;
     int nSubtracted = 0;
     int nbitalpha = 0;
@@ -325,7 +335,8 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         dPrev_f = f_;
         // call BFGS solver
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
-    
+        // add nbits to the sum of function evaluations
+        nFuncEvals += nbit;
         dRetBound = (max_problem_) ? floor(f_) : ceil(-f_);
         
         prune = pruneTest(dRetBound);
@@ -391,6 +402,10 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         
     }
 
+    if(bRoot)
+    {
+        std::printf("Bounding Complete:\n%d Function Evaluations\n", nFuncEvals);
+    }
     //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
     
     dRetBound = (max_problem_) ? f_ : -f_;
