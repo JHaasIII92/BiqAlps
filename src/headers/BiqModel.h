@@ -7,6 +7,7 @@
 #include "BiqNodeDesc.h"
 #include "BiqSolution.h"
 #include "BiqUtil.h"
+#include "BiqParams.h"
 #include "math.h"
 #include<iostream>
 #include <utility>
@@ -102,6 +103,9 @@ private:
 
     BiqModel(const BiqModel&);
     BiqModel& operator=(const BiqModel&);
+
+
+    BiqParams *BiqPar_;
     
 public:
     BiqModel(){InitEmptyModel();};
@@ -130,6 +134,8 @@ public:
     std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);
 
     virtual void readInstance(const char* dataFile);
+
+    BiqParams *BiqPar() { return BiqPar_; }
 
 private:
 

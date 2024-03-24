@@ -1,11 +1,11 @@
 #include "AlpsParameterBase.h"
 #include "headers/BiqParams.h"
 
+using std::make_pair;
 
 
 void
 BiqParams::createKeywordList() {
-    std::printf("params!!!!!!\n");
     // Create the list of keywords for parameter file reading
     //-------------------------------------------------------------------------
     // CharPar
@@ -15,7 +15,8 @@ BiqParams::createKeywordList() {
 
     //-------------------------------------------------------------------------
     // IntPar
-
+    keys_.push_back(make_pair(std::string("Biq_boundStatusInterval"),
+			      AlpsParameter(AlpsIntPar, boundStatusInterval)));
 
     //-------------------------------------------------------------------------
     // DoublePar
@@ -34,7 +35,7 @@ BiqParams::setDefaultEntries() {
 
     //-------------------------------------------------------------------------
     // IntPar
-
+    setEntry(boundStatusInterval, 2);
     //-------------------------------------------------------------------------
     // DoublePar
 

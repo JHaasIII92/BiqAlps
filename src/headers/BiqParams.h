@@ -12,18 +12,15 @@ class BiqParams : public AlpsParameterSet {
   /** Character parameters. All of these variable are used as booleans
       (ture = 1, false = 0). */
   enum boolParams{
-    /// Whether generate cuts during rampup
-    cutDuringRampup,
+
     //
     endOfBoolParams
   };
 
   /** Integer paramters. */
   enum intParams{
-      /// The interval (number of nodes) to report current search status
-      statusInterval,
-      ///
-      logLevel,
+      // 
+      boundStatusInterval,
       //
       endOfIntParams
   };

@@ -2,8 +2,13 @@
 #include "AlpsKnowledgeBroker.h"
 #include "AlpsKnowledge.h"
 #include "headers/BiqSolution.h"
+#include "headers/BiqParams.h"
+
 void BiqModel::InitModel() 
 {
+
+    BiqPar_ = new BiqParams;
+    
     ISUPPZ_ = new int[2*N_];
     X_ = new double[N_*N_];
     W_ = new double[N_];
@@ -617,9 +622,10 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     double dMinAlpha = 1e-5;
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
+    // Biq.par
+    int satusInterval = static_cast<int>(BiqPar_->entry(BiqParams::boundStatusInterval)); 
 
-
-    
+    std::printf("Status interval = %d\n", satusInterval%2);
 
     // 
     if(nVar_sub_ == 0)
@@ -685,7 +691,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
     
-        if(bRoot)
+        if(i%satusInterval || i == 0)
         {
             PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
         }
@@ -710,7 +716,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         
     }
 
-    if(bRoot)
+    if(i%satusInterval)
     {
         std::printf("Bounding Complete:\n%d Function Evaluations\n", nFuncEvals);
     }

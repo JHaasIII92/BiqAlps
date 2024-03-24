@@ -28,3 +28,4 @@ Alps_hubReportFreqency 10000
 Alps_nodeSelStrategy 0      # 0: best bound 1: DFS 2: BFS 3: hybrid
 Alps_subTreeCompareRule 0   # 0: quality 1: quantity 2: root depth 3: hybrid
 Alps_instance /workspaces/BiqAlps/src/g05_60.4.bc
+Biq_boundStatusInterval 1
