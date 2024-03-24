@@ -15,7 +15,8 @@
 #include <unordered_map>
 #include <tuple>
 #include <queue>
-
+#include <string>
+#include <fstream>
 
 class BiqModel: public AlpsModel
 {
@@ -35,6 +36,7 @@ private:
 
     std::vector<Sparse> Bs_;     // Equality constraint matrix
     double *b_;                            // Right-hand-side equality constraints
+    double *b_original_;                            // Right-hand-side equality constraints
     int mB_;                               // Number of equality constraints
     std::vector<int> iEqualityIsLinear_;
 
@@ -103,12 +105,6 @@ private:
     
 public:
     BiqModel(){InitEmptyModel();};
-    BiqModel(int nVar, bool max_problem,
-             double *Q, Sparse Qs,
-             std::vector<Sparse> As, double *a,
-             std::vector<int> bInequalityIsLinear,
-             std::vector<Sparse> Bs, double *b,
-             std::vector<int> bEqualityIsLinear);
     ~BiqModel();
   /** Create the root node. Default: do nothing */
   virtual AlpsTreeNode * createRoot(){
@@ -132,6 +128,9 @@ public:
     
     
     std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);
+
+    virtual void readInstance(const char* dataFile);
+
 private:
 
     void AddDiagCons();
@@ -186,6 +185,8 @@ private:
     void freeData(double *& data);
 
     void InitEmptyModel();
+
+    void InitModel();
     
     void SetConSparseSize();
 

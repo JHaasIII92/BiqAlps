@@ -2,27 +2,8 @@
 #include "AlpsKnowledgeBroker.h"
 #include "AlpsKnowledge.h"
 #include "headers/BiqSolution.h"
-BiqModel::BiqModel(
-    int nVar, bool max_problem,
-    double *Q, Sparse Qs,
-    std::vector<Sparse> As, double *a,
-    std::vector<int> iInequalityIsLinear,
-    std::vector<Sparse> Bs, double *b,
-    std::vector<int> iEqualityIsLinear
-) 
-    : nVar_(nVar),
-      max_problem_(max_problem),
-      Q_(Q),
-      Qs_(Qs),
-      As_(As),
-      a_(a),
-      iInequalityIsLinear_(iInequalityIsLinear),
-      Bs_(Bs),
-      iEqualityIsLinear_(iEqualityIsLinear)
-
+void BiqModel::InitModel() 
 {
-    std::printf("top of con\n");
-    N_ = nVar_ + 1;
     ISUPPZ_ = new int[2*N_];
     X_ = new double[N_*N_];
     W_ = new double[N_];
@@ -44,11 +25,8 @@ BiqModel::BiqModel(
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
     vOffset_.resize(nVar_, 0);
-    b_     = new double[mB_];
-    //FillSparseMatrix(Qs_,Q_,N_);
-    // Copy the b vector in to the first Bs_.size() entries
-    std::copy(b, b + Bs_.size(), b_);
-
+    b_   = new double[mB_];
+    std::copy(b_original_, b_original_ + Bs_.size(), b_);
     /* L-BFGS-B Data */
     int nMax = mB_ + mA_ + MaxNineqAdded;
     int wa_length = (2 * mmax + 5) * nMax + 11 * mmax * mmax + 8 * mmax;
@@ -86,6 +64,333 @@ BiqModel::BiqModel(
 
     vdFracSol_.resize(nVar_);
 }
+
+void BiqModel::readInstance(const char* strDataFile)
+{
+    N_ = 0;
+    int nCon = 0; 
+    int nEqCon = 0;
+    int nInEqCon = 0;
+    int nBlocks= 0;
+    int pos_a = 0;
+    int pos_b = 0;
+    int pos_rhs = 0;
+    double *rhs;
+    
+    bool bInIneq = false;
+    bool bInGeq = false;
+    bool bLinear = true;
+
+    // data for the matrix read in
+    int numMat;
+    int numPrevMat;
+    int numBlock; 
+    int i_index;
+    int j_index;
+    int int_max_prob;
+
+    double dBcVal;
+    double dtmp;
+    
+    std::vector<double> tmpMatrix0;
+    std::string strLine;
+
+
+
+    
+
+    std::ifstream dataFile(strDataFile);
+    std::printf("Reading in: %s \n", strDataFile);
+    // Read out each comment for now
+    while (getline (dataFile, strLine) &&
+            (strLine.at(0) == ';'   ||
+             strLine.at(0) == '\\'  ||
+             strLine.at(0) == '#'   ||
+             strLine.at(0) == '*' 
+            )
+    ) 
+    {
+        std::printf("%s \n", strLine.c_str());
+    }
+
+    // read in problem sense
+    std::sscanf(strLine.c_str(), "%d", &int_max_prob);
+    max_problem_ = int_max_prob == 1;
+    getline(dataFile, strLine);
+    // read in number of constraints 
+    std::sscanf(strLine.c_str(), "%d", &nCon);
+    // number of blocks
+    getline(dataFile, strLine);
+    std::sscanf(strLine.c_str(), "%d", &nBlocks);
+    // problem size and number of ineq
+    getline(dataFile, strLine);
+    if(nBlocks == 1)
+    {
+        std::sscanf(strLine.c_str(), "%d", &N_);
+        nInEqCon = 0;
+    }
+    else
+    {
+        std::sscanf(strLine.c_str(), "%d, -%d", &N_, &nInEqCon); 
+    }
+    nVar_ = N_ - 1;
+    nEqCon = nCon - nInEqCon;
+    Q_ = new double[N_*N_];
+    
+    // the next line will have the RHS if any cons
+    // add space to stor the data
+    Bs_.resize(nEqCon);
+    As_.resize(nInEqCon);
+    b_original_ = new double[nEqCon];
+    a_ = new double[nInEqCon];
+    rhs = new double[nCon];
+    
+    // read all data to rhs split into a_ b_original_ later
+    for(int i = 0; i < nCon; ++i)
+    {
+        dataFile >> rhs[i];           
+    }
+    if(nCon > 0) getline (dataFile, strLine);
+    getline (dataFile, strLine);
+    // getline (dataFile, strLine);
+    // next we are going to read in matrix data
+    tmpMatrix0.resize(N_*N_);
+
+    zeroOutMatrix(tmpMatrix0);
+
+    std::sscanf(strLine.c_str(), "%d %d %d %d %lf \n", &numMat, &numBlock, &i_index, &j_index, &dBcVal);
+    --i_index;
+    --j_index;
+    //std::printf("%d %d %d %d %lf \n", numMat, numBlock, i_index, j_index, dBcVal); 
+        if(numBlock == 2)
+        {
+            bInIneq = true;
+            if(dBcVal < 0.0)
+            {
+                bInGeq = true;
+            }
+        }
+        else
+        {
+            if(numMat == 0 && !max_problem_)
+            {
+                dBcVal = -dBcVal;
+            }
+
+            if (i_index < N_-1 && j_index < N_-1)
+            {
+                bLinear = false;
+            }
+            
+            // case in quad or
+            // i_index < N - 1 && j_index < N - 1
+            if(i_index < N_-1 && j_index < N_-1 && i_index != j_index)
+            {
+                tmpMatrix0.at(i_index + j_index*N_) += 0.25 * dBcVal;
+                tmpMatrix0.at(j_index + i_index*N_) += 0.25 * dBcVal;
+                // add some to the linear part
+                tmpMatrix0.at(i_index + N_*(N_-1)) += 0.25 * dBcVal;
+                tmpMatrix0.at(N_-1 + N_*i_index) += 0.25 * dBcVal;
+                tmpMatrix0.at(N_-1 + j_index*N_) += 0.25 * dBcVal;
+                tmpMatrix0.at(j_index + N_*(N_-1)) += 0.25 * dBcVal;
+                // add some to the const
+                tmpMatrix0.at(N_-1 + N_*(N_-1)) += 0.5 * dBcVal;
+            }
+            // case we are on the diag of the quad
+            // zero it out and move it to the const
+            else if(i_index < N_-1 && j_index < N_-1 && i_index == j_index)
+            {
+                tmpMatrix0.at(i_index + j_index*N_) = 0; 
+                tmpMatrix0.at(N_-1 + N_*(N_-1)) += 0.5 * dBcVal;
+                // add some to the linear part
+                tmpMatrix0.at(i_index + N_*(N_-1)) += 0.25 * dBcVal;
+                tmpMatrix0.at(N_-1 + N_*i_index) += 0.25 * dBcVal;
+            }
+            // case we are linear 
+            else if((i_index < N_-1 && j_index == N_-1) ||
+                    (i_index == N_-1 && j_index < N_-1) )
+            {
+                tmpMatrix0.at(i_index + j_index*N_) += 0.5 * dBcVal;
+                tmpMatrix0.at(j_index + i_index*N_) += 0.5 * dBcVal;
+
+                // add some to the const
+                tmpMatrix0.at(N_-1 + N_*(N_-1)) += dBcVal;
+            }
+            // case in const 
+            // we are in const when i_index == N_ - 1  && j_index == N_ - 1
+            else
+            {
+                tmpMatrix0.at(j_index + i_index*N_) += dBcVal;
+            }
+        }
+
+    numPrevMat = numMat;
+
+    // read until end of line
+    bool bReading = true;
+    
+    while(bReading)
+    {
+        if(getline(dataFile, strLine))
+        {
+            std::sscanf(strLine.c_str(), "%d %d %d %d %lf \n", &numMat, &numBlock, &i_index, &j_index, &dBcVal);
+            //std::printf("%d %d %d %d %lf \n", numMat, numBlock, i_index, j_index, dBcVal);
+        }
+        else
+        {
+            bReading = false;
+        }
+
+        if(numMat != numPrevMat || !bReading)
+        {
+            if(bInGeq)
+            {
+                for(auto &it: tmpMatrix0)
+                {
+                    it = -it;
+                }
+            }
+            //PrintMatrix(tmpMatrix0);
+            //std::printf("\n\n");
+            // now make a sparse matrix
+            if(numPrevMat == 0)
+            {
+                for(int i = 0; i < N_*N_; ++i)
+                {
+                    Q_[i] = tmpMatrix0.at(i);
+                }
+
+                FillSparseMatrix(Qs_, tmpMatrix0);
+            }
+            else if(!bInIneq) 
+            {
+                Sparse sparseCon;
+                FillSparseMatrix(sparseCon, tmpMatrix0);
+
+                // If linear, add product constraints
+                if(bLinear)
+                {
+                    std::printf("pre push back\n");
+                    iEqualityIsLinear_.push_back(pos_b);
+                    std::printf("post push back\n");
+
+                }
+
+                Bs_.at(pos_b) = sparseCon;
+                b_original_[pos_b] = rhs[pos_rhs];
+                
+                ++pos_b;
+                ++pos_rhs; 
+            }
+            else 
+            {
+                Sparse sparseCon;
+                FillSparseMatrix(sparseCon, tmpMatrix0);
+                As_.at(pos_a) = sparseCon;
+                if(bInGeq)
+                {
+                    a_[pos_a] = - rhs[pos_rhs];
+                }
+                else
+                {
+                    a_[pos_a] = rhs[pos_rhs];
+                }
+                if(bLinear)
+                {
+                    std::printf("pre push back\n");
+                    iInequalityIsLinear_.push_back(pos_b);
+                    std::printf("post push back\n");
+                }
+                
+                ++pos_a;
+                ++pos_rhs; 
+            }
+
+            // clear out for next matrix
+            if(bReading)
+            {
+                zeroOutMatrix(tmpMatrix0);
+                bInIneq = false;
+                bInGeq = false;
+                bLinear = true;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if(numBlock == 2)
+        {
+            bInIneq = true;
+            if(dBcVal < 0.0)
+            {
+                bInGeq = true;
+            }
+        }
+        else
+        {
+            --i_index;
+            --j_index;
+            //std::printf("%d %d %d %d %lf \n", numMat, numBlock, i_index, j_index, dBcVal); 
+                        if(numMat == 0 && !max_problem_)
+            {
+                dBcVal = -dBcVal;
+            }
+
+            if (i_index < N_-1 && j_index < N_-1)
+            {
+                bLinear = false;
+            }
+
+            // case in quad or
+            // i_index < N_ - 1 && j_index < N_ - 1
+            if(i_index < N_-1 && j_index < N_-1 && i_index != j_index)
+            {
+                tmpMatrix0.at(i_index + j_index*N_) += 0.25 * dBcVal;
+                tmpMatrix0.at(j_index + i_index*N_) += 0.25 * dBcVal;
+                // add some to the linear part
+                tmpMatrix0.at(i_index + N_*(N_-1)) += 0.25 * dBcVal;
+                tmpMatrix0.at(N_-1 + N_*i_index) += 0.25 * dBcVal;
+                tmpMatrix0.at(N_-1 + j_index*N_) += 0.25 * dBcVal;
+                tmpMatrix0.at(j_index + N_*(N_-1)) += 0.25 * dBcVal;
+                // add some to the const
+                tmpMatrix0.at(N_-1 + N_*(N_-1)) += 0.5 * dBcVal;
+            }
+            // case we are on the diag of the quad
+            // zero it out and move it to the const
+            else if(i_index < N_-1 && j_index < N_-1 && i_index == j_index)
+            {
+                tmpMatrix0.at(i_index + j_index*N_) = 0; 
+                tmpMatrix0.at(N_-1 + N_*(N_-1)) += 0.5 * dBcVal;
+                // add some to the linear part
+                tmpMatrix0.at(i_index + N_*(N_-1)) += 0.25 * dBcVal;
+                tmpMatrix0.at(N_-1 + N_*i_index) += 0.25 * dBcVal;
+            }
+            // case we are linear 
+            else if((i_index < N_-1 && j_index == N_-1) ||
+                    (i_index == N_-1 && j_index < N_-1) )
+            {
+                tmpMatrix0.at(i_index + j_index*N_) += 0.5 * dBcVal;
+                tmpMatrix0.at(j_index + i_index*N_) += 0.5 * dBcVal;
+
+                // add some to the const
+                tmpMatrix0.at(N_-1 + N_*(N_-1)) += dBcVal;
+            }
+            // case in const 
+            // we are in const when i_index == N_ - 1  && j_index == N_ - 1
+            else
+            {
+                tmpMatrix0.at(j_index + i_index*N_) += dBcVal;
+            }
+        }
+        numPrevMat = numMat;
+    }
+    dataFile.close();
+    InitModel();
+    return;
+}
+
 
 void BiqModel::InitEmptyModel()
 {
@@ -131,6 +436,9 @@ BiqModel::~BiqModel()
     FREE_DATA(iwa_);
     FREE_DATA(pdTmpLinear_);
     FREE_DATA(pdTmp_sub_);    
+    FREE_DATA(Q_); 
+    FREE_DATA(a_); 
+    FREE_DATA(b_); 
 }
 
 /// @brief 
@@ -177,7 +485,7 @@ void BiqModel::AddProdCons()
     double dTemp;
     double dLinear = 0;
     // lopp over the the 
-    std::printf("mB_ = %d \t Size(Bs_) = %d \t Number of Diag Cons = %d \t Equality Cons = %d\n", mB_, Bs_.size(), N_, iEqualityIsLinear_.size());
+    //std::printf("mB_ = %d \t Size(Bs_) = %d \t Number of Diag Cons = %d \t Equality Cons = %d\n", mB_, Bs_.size(), N_, iEqualityIsLinear_.size());
 
     // k = positon of equality con
     for(size_t k = 0; k < iEqualityIsLinear_.size(); ++k)
@@ -215,7 +523,7 @@ void BiqModel::AddProdCons()
                 }
 
             }
-            std::printf("Const = %f     RHS = %f \n", dLinear,  b_[k]);
+            //std::printf("Const = %f     RHS = %f \n", dLinear,  b_[k]);
             dLinear -= b_[k];
             if(dLinear != 0.0)
             {
@@ -226,13 +534,13 @@ void BiqModel::AddProdCons()
             Bs_.push_back(bstTemp);
             b_[posProdCon] = 0;
             
-            //
+            /*
             std::printf("\n og con");
             PrintSparseMatrix(Bs_.at(iEqualityIsLinear_.at(k)));
             std::printf("\n prod con");
             PrintSparseMatrix(Bs_.at(posProdCon));
             std::printf("\n");
-            
+            */
             // reset tmp data
             bstTemp.clear();
             dLinear = 0;
@@ -240,7 +548,7 @@ void BiqModel::AddProdCons()
             posProdCon++;
         }
     }
-    std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
+    //std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
     //exit(1);
 }
 /// @brief use this method
