@@ -1,0 +1,16 @@
+
+================================================
+Problem = g05_60.4.bc
+Log file = g05_60.4.bc.log
+
+
+Best solution quality = -527
+Number of nodes processed = 43
+Number of nodes partially processed = 0
+Number of nodes branched = 21
+Number of nodes discarded = 0
+Number of nodes left in queue= 0
+Tree depth = 14
+Search CPU time =  38.9506 seconds
+Search wallclock = 39.8077 seconds
+
