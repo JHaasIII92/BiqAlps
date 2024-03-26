@@ -1,4 +1,5 @@
 *.o
+*.log
 .DS_Store
 *.a
 gmon.out
