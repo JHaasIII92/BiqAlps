@@ -25,7 +25,7 @@ void BiqModel::InitModel()
     std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
     mA_ = As_.size();
     mB_ = Bs_.size() + N_ ;
-    mB_ += iEqualityIsLinear_.size()*nVar_;
+    // mB_ += iEqualityIsLinear_.size()*nVar_;
     a_sub_ = new double[mA_];
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
@@ -50,7 +50,7 @@ void BiqModel::InitModel()
     
     
     AddDiagCons();
-    AddProdCons();
+    // AddProdCons();
     AllocSubCons();
     SetConSparseSize();
     // Set cut data 
@@ -756,7 +756,7 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
     std::printf("%4d  %6.1f  %5.1f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %20.16e  %6.0e  %4d  -%-3d  +%-3d\n", 
                 iter, 
                 0.0, /* TODO time*/
-                f_, 
+                dGap, // f_, 
                 dAlpha, 
                 dTol, 
                 nBit, 
@@ -1281,6 +1281,15 @@ void BiqModel::CreateSubProblem(std::vector<BiqVarStatus> vbiqVarStatus)
 
     nVar_sub_ = nVar_ - nFixed;
 
+    for(auto it = Bs_sub_.begin(); it < Bs_sub_.end(); ++it)
+    {
+        it->clear();
+    }
+    for(auto it = As_sub_.begin(); it < As_sub_.end(); ++it)
+    {
+        it->clear();
+    }
+
     BuildConstraints(mB_, b_, Bs_, b_sub_, Bs_sub_,
                         vbiqVarStatus, nFixed); 
 
@@ -1364,17 +1373,12 @@ void BiqModel::BuildConstraints(int nRows,
         //dScaleFactor = 1.0;
         dScaleFactor = 1.0 / (1.0 + fabs(RHSsource[k]) + dCoefMatNorm); 
         RHSdest[k] =  RHSsource[k];
-        itSource = (sMatArraydest.at(k)).begin();
         // Quad Part
         for(i = 0; i < nnzAdded; ++i)
         {
             if(fabs(sTmp_sub_.at(i).dVal_) > 0.0)
             {
-                itSource->i_    = sTmp_sub_.at(i).i_;
-                itSource->j_    = sTmp_sub_.at(i).j_;
-                itSource->dVal_ = sTmp_sub_.at(i).dVal_ * dScaleFactor;
-                ++itSource;
-
+                sMatArraydest[k].push_back(BiqSparseTriple(sTmp_sub_.at(i).i_, sTmp_sub_.at(i).j_, sTmp_sub_.at(i).dVal_ * dScaleFactor));
             }
         } 
 
@@ -1383,20 +1387,14 @@ void BiqModel::BuildConstraints(int nRows,
         {
             if(fabs(pdTmpLinear_[j]) > 0.0)
             {
-                itSource->i_    = nVar_sub_;
-                itSource->j_    = j;
-                itSource->dVal_ = pdTmpLinear_[j] * dScaleFactor;
-                ++itSource;
+                sMatArraydest[k].push_back(BiqSparseTriple(nVar_sub_, j, pdTmpLinear_[j] * dScaleFactor));
             }
         }
 
         // new constant value on left-side
         if(fabs(dConstant) > 0.0)
         {
-            itSource->i_    = nVar_sub_;
-            itSource->j_    = nVar_sub_;
-            itSource->dVal_ = dConstant * dScaleFactor;
-            ++itSource;
+            sMatArraydest[k].push_back(BiqSparseTriple(nVar_sub_, nVar_sub_, dConstant * dScaleFactor));
         }
 
         RHSdest[k] *= dScaleFactor;
