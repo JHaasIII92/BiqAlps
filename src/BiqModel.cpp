@@ -9,6 +9,9 @@ void BiqModel::InitModel()
 
     BiqPar_ = new BiqParams;
     
+    // get the params needed for initilization 
+    bool bProdCons = BiqPar_->entry(BiqParams::AddProductConstraints);   
+
     ISUPPZ_ = new int[2*N_];
     X_ = new double[N_*N_];
     W_ = new double[N_];
@@ -21,11 +24,13 @@ void BiqModel::InitModel()
     nIWORK_ =  10 * N_;
     DWORK_ = new double[nDWORK_];
     IWORK_ = new int[nIWORK_]; 
-    //temp 
-    std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
+    
+    
     mA_ = As_.size();
+
     mB_ = Bs_.size() + N_ ;
-    // mB_ += iEqualityIsLinear_.size()*nVar_;
+    if(bProdCons) mB_ += iEqualityIsLinear_.size()*nVar_;
+
     a_sub_ = new double[mA_];
     b_sub_ = new double[mB_];
     Q_sub_ = new double[N_*N_];
@@ -50,7 +55,7 @@ void BiqModel::InitModel()
     
     
     AddDiagCons();
-    // AddProdCons();
+    if(bProdCons) AddProdCons();
     AllocSubCons();
     SetConSparseSize();
     // Set cut data 
@@ -95,7 +100,6 @@ void BiqModel::readInstance(const char* strDataFile)
     int int_max_prob;
 
     double dBcVal;
-    double dtmp;
     
     std::vector<double> tmpMatrix0;
     std::string strLine;
@@ -490,6 +494,7 @@ void BiqModel::AddProdCons()
     double dTemp;
     double dLinear = 0;
     // lopp over the the 
+    std::printf("Adding Prod Cons\n");
     //std::printf("mB_ = %d \t Size(Bs_) = %d \t Number of Diag Cons = %d \t Equality Cons = %d\n", mB_, Bs_.size(), N_, iEqualityIsLinear_.size());
 
     // k = positon of equality con
@@ -623,9 +628,6 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     double dScaleAlpha = 0.5;
     double dScaleTol = 0.93;
     // Biq.par
-    int satusInterval = static_cast<int>(BiqPar_->entry(BiqParams::boundStatusInterval)); 
-
-    std::printf("Status interval = %d\n", satusInterval%2);
 
     // 
     if(nVar_sub_ == 0)
@@ -691,7 +693,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
     
-        if(i%satusInterval || i == 0)
+        if(bRoot)
         {
             PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
         }
@@ -716,7 +718,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         
     }
 
-    if(i%satusInterval)
+    if(bRoot)
     {
         std::printf("Bounding Complete:\n%d Function Evaluations\n", nFuncEvals);
     }

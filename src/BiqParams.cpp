@@ -11,12 +11,11 @@ BiqParams::createKeywordList() {
     // CharPar
 
     //-------------------------------------------------------------------------
-    // BoolArrayPar
-
+    // BoolPar
+    keys_.push_back(make_pair(std::string("Biq_AddProductConstraints"),
+			      AlpsParameter(AlpsBoolPar, AddProductConstraints)));
     //-------------------------------------------------------------------------
     // IntPar
-    keys_.push_back(make_pair(std::string("Biq_boundStatusInterval"),
-			      AlpsParameter(AlpsIntPar, boundStatusInterval)));
 
     //-------------------------------------------------------------------------
     // DoublePar
@@ -34,8 +33,12 @@ BiqParams::setDefaultEntries() {
     // CharPar
 
     //-------------------------------------------------------------------------
+    // BoolPar
+    setEntry(AddProductConstraints, true);
+
+    //-------------------------------------------------------------------------
     // IntPar
-    setEntry(boundStatusInterval, 2);
+
     //-------------------------------------------------------------------------
     // DoublePar
 

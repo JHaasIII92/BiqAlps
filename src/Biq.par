@@ -27,5 +27,5 @@ Alps_maxHubWorkSize 2
 Alps_hubReportFreqency 10000
 Alps_nodeSelStrategy 0      # 0: best bound 1: DFS 2: BFS 3: hybrid
 Alps_subTreeCompareRule 0   # 0: quality 1: quantity 2: root depth 3: hybrid
-Alps_instance /workspaces/BiqAlps/src/g05_60.4.bc
-Biq_boundStatusInterval 1
+Alps_instance /workspaces/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n100_d025_k25_1_noProdCons.bc
+Biq_AddProductConstraints 1
