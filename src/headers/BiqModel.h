@@ -137,6 +137,15 @@ public:
 
     BiqParams *BiqPar() { return BiqPar_; }
 
+    /** Read in Alps and Biq parameters. */
+    void readParameters(const int argnum, const char * const * arglist) {
+        std::cout << "Reading in ALPS parameters ..." << std::endl;
+        AlpsPar_->readFromArglist(argnum, arglist);
+        std::cout << "Reading in Biq parameters ..." << std::endl;
+        BiqPar_->readFromArglist(argnum, arglist);
+    }
+
+
 private:
 
     void AddDiagCons();

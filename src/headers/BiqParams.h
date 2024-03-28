@@ -12,15 +12,14 @@ class BiqParams : public AlpsParameterSet {
   /** Character parameters. All of these variable are used as booleans
       (ture = 1, false = 0). */
   enum boolParams{
-
+    AddProductConstraints,    
     //
     endOfBoolParams
   };
 
   /** Integer paramters. */
   enum intParams{
-      // 
-      boundStatusInterval,
+
       //
       endOfIntParams
   };
