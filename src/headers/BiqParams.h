@@ -14,7 +14,7 @@ class BiqParams : public AlpsParameterSet {
   enum boolParams{
     bAddProductConstraints,    
     bAddCuts,
-    bSacle,
+    bScale,
 
     //
     endOfBoolParams
@@ -37,7 +37,7 @@ class BiqParams : public AlpsParameterSet {
   /** Double parameters. */
   enum dblParams{
     dInitAlpha,
-    dSacleAlpha,
+    dScaleAlpha,
     dMinAlpha,
     dScaleTol,
     dMinTol,

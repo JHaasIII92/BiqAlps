@@ -637,7 +637,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
     const int nitermax = BiqPar_->entry(BiqParams::nMaxBFGSIter);
     const double dMinAlpha = BiqPar_->entry(BiqParams::dMinAlpha);
-    const double dScaleAlpha = BiqPar_->entry(BiqParams::dSacleAlpha);
+    const double dScaleAlpha = BiqPar_->entry(BiqParams::dScaleAlpha);
     const double dScaleTol = BiqPar_->entry(BiqParams::dScaleTol);
     const double dMinTol = BiqPar_->entry(BiqParams::dMinTol);
     double dAlpha = BiqPar_->entry(BiqParams::dInitAlpha);
@@ -716,6 +716,11 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nitermax)
         {
+            if (prune) std::printf("Prune\n");
+            if (bGiveUp) std::printf("Give Up\n");
+            if (bStopSDPBound) std::printf("Stop SDP Bound\n");
+            if (iStatus == -1) std::printf("Status -1\n");
+            if (nbit >= nitermax) std::printf("nbit >= nitermax\n");
             //std::printf("gap: |%f - %f| = %f\n",bestVal,  dRetBound, fabs(bestVal - dRetBound));
             break;
         }
@@ -756,7 +761,8 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
         std::printf("%4s  %6s  %5s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %4s  %4s  %4s\n", 
                     "Iter", 
                     "Time", 
-                    "gap", 
+                    //"gap", 
+                    "bound",
                     "alpha", 
                     "tol", 
                     "nbit", 
@@ -773,7 +779,8 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
     std::printf("%4d  %6.1f  %5.4f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %20.16e  %6.0e  %4d  -%-3d  +%-3d\n", 
                 iter, 
                 0.0, /* TODO time*/
-                dGap, // f_, 
+                //dGap, 
+                f_, 
                 dAlpha, 
                 dTol, 
                 nBit, 
@@ -2159,12 +2166,12 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
     if(max_problem_ && dVal > bestVal)
     {
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dVal);
-        //printf("Beta updated => %f\n",-dVal);
+        printf("Beta updated => %f\n",-dVal);
     }
     else if(!max_problem_ && dVal < bestVal)
     {     
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
-        //printf("Beta updated => %f\n",dVal);
+        printf("Beta updated => %f\n",dVal);
     }   
     else
     {
@@ -2199,6 +2206,10 @@ std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vb
 
 bool BiqModel::pruneTest(double dBound)
 {
+    if(broker()->hasKnowledge(AlpsKnowledgeTypeSolution) == false)
+    {
+        return false;
+    }
     bool bRet = false;
     int bestVal = static_cast<int>(broker()->getIncumbentValue());
     if(max_problem_)
@@ -2206,11 +2217,7 @@ bool BiqModel::pruneTest(double dBound)
         bestVal = -bestVal;
     }
     
-    if(bestVal == -INFVAL)
-    {
-        bRet = false;
-    }
-    else if(
+    if(
         //bestVal < -INT32_MAX &&
         (
         (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 

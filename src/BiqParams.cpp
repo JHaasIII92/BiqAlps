@@ -16,8 +16,8 @@ BiqParams::createKeywordList() {
 			      AlpsParameter(AlpsBoolPar, bAddProductConstraints)));
     keys_.push_back(make_pair(std::string("Biq_bAddCuts"),
 			      AlpsParameter(AlpsBoolPar, bAddCuts)));
-    keys_.push_back(make_pair(std::string("Biq_bSacle"),
-			      AlpsParameter(AlpsBoolPar, bSacle)));
+    keys_.push_back(make_pair(std::string("Biq_bScale"),
+			      AlpsParameter(AlpsBoolPar, bScale)));
     //-------------------------------------------------------------------------
     // IntPar
     keys_.push_back(make_pair(std::string("Biq_nCuts"),
@@ -38,8 +38,8 @@ BiqParams::createKeywordList() {
     // DoublePar
     keys_.push_back(make_pair(std::string("Biq_dInitAlpha"),
 			      AlpsParameter(AlpsDoublePar, dInitAlpha)));
-    keys_.push_back(make_pair(std::string("Biq_dSacleAlpha"),
-			      AlpsParameter(AlpsDoublePar, dSacleAlpha)));
+    keys_.push_back(make_pair(std::string("Biq_dScaleAlpha"),
+			      AlpsParameter(AlpsDoublePar, dScaleAlpha)));
     keys_.push_back(make_pair(std::string("Biq_dMinAlpha"),
 			      AlpsParameter(AlpsDoublePar, dMinAlpha)));
     keys_.push_back(make_pair(std::string("Biq_dInitTol"),
@@ -49,7 +49,7 @@ BiqParams::createKeywordList() {
     keys_.push_back(make_pair(std::string("Biq_dMinTol"),
 			      AlpsParameter(AlpsDoublePar, dMinTol)));
     keys_.push_back(make_pair(std::string("Biq_dGapCuts"),
-			      AlpsParameter(AlpsDoublePar, dGapCuts)));                                                                                          
+			      AlpsParameter(AlpsDoublePar, dGapCuts)));
     //-------------------------------------------------------------------------
     // StringPar
 
@@ -66,7 +66,7 @@ BiqParams::setDefaultEntries() {
     // BoolPar
     setEntry(bAddProductConstraints, true);
     setEntry(bAddCuts, true);
-    setEntry(bSacle, true);
+    setEntry(bScale, true);
 
     //-------------------------------------------------------------------------
     // IntPar
@@ -79,7 +79,7 @@ BiqParams::setDefaultEntries() {
     //-------------------------------------------------------------------------
     // DoublePar
     setEntry(dInitAlpha, 1e-1);
-    setEntry(dSacleAlpha, 0.5);
+    setEntry(dScaleAlpha, 0.5);
     setEntry(dMinAlpha, 5e-5);
     setEntry(dInitTol, 1e-1);
     setEntry(dScaleTol, 0.95);
