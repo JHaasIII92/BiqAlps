@@ -12,13 +12,23 @@ class BiqParams : public AlpsParameterSet {
   /** Character parameters. All of these variable are used as booleans
       (ture = 1, false = 0). */
   enum boolParams{
-    AddProductConstraints,    
+    bAddProductConstraints,    
+    bAddCuts,
+    bSacle,
+
     //
     endOfBoolParams
   };
 
   /** Integer paramters. */
   enum intParams{
+      nCuts,
+      nMinCuts,
+      nMaxBoundingIter,
+      nMaxBFGSIter,
+      nMinBoundingIter,
+      nMaxAlphaIter,
+      nGoemanRuns,
 
       //
       endOfIntParams
@@ -26,7 +36,14 @@ class BiqParams : public AlpsParameterSet {
 
   /** Double parameters. */
   enum dblParams{
-    dblDummy,
+    dInitAlpha,
+    dSacleAlpha,
+    dMinAlpha,
+    dScaleTol,
+    dMinTol,
+    dGapCuts,
+    dInitTol,
+
     //
     endOfDblParams
   };
@@ -34,6 +51,7 @@ class BiqParams : public AlpsParameterSet {
   /** String parameters. */
   enum strParams{
     strDummy,
+
     //
     endOfStrParams
   };
@@ -41,6 +59,7 @@ class BiqParams : public AlpsParameterSet {
   /** There are no string array parameters. */
   enum strArrayParams{
     strArrayDummy,
+
     //
     endOfStrArrayParams
   };

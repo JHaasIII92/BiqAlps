@@ -7,10 +7,10 @@
 void BiqModel::InitModel() 
 {
 
-    BiqPar_ = new BiqParams;
     
     // get the params needed for initilization 
-    bool bProdCons = BiqPar_->entry(BiqParams::AddProductConstraints);   
+    const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
+    const int nCuts = BiqPar_->entry(BiqParams::nCuts);
 
     ISUPPZ_ = new int[2*N_];
     X_ = new double[N_*N_];
@@ -60,8 +60,8 @@ void BiqModel::InitModel()
     SetConSparseSize();
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
-    container.reserve(500001);
-    //Map_.reserve(MaxNineqAdded);
+    container.reserve(nCuts);
+
     nIneq_ = 0;
 
     // set some memory for the sTemp_sub_ matrix
@@ -73,6 +73,17 @@ void BiqModel::InitModel()
     viSolution_2_.resize(N_);
 
     vdFracSol_.resize(nVar_);
+}
+
+
+/** Read in Alps and Biq parameters. */
+void BiqModel::readParameters(const int argnum, const char * const * arglist) 
+{
+        printf("BiqModel::readParameters\n");
+        std::cout << "Reading in ALPS parameters ..." << std::endl;
+        AlpsPar_->readFromArglist(argnum, arglist);
+        std::cout << "Reading in Biq parameters ..." << std::endl;
+        BiqPar_->readFromArglist(argnum, arglist);
 }
 
 void BiqModel::readInstance(const char* strDataFile)
@@ -403,6 +414,8 @@ void BiqModel::readInstance(const char* strDataFile)
 
 void BiqModel::InitEmptyModel()
 {
+    printf("BiqModel::InitModel() \n");
+    BiqPar_ = new BiqParams;
     ISUPPZ_ = NULL;
     X_ = NULL;
     W_ = NULL;
@@ -489,7 +502,7 @@ void BiqModel::AddDiagCons()
 void BiqModel::AddProdCons()
 {
     Sparse bstTemp;
-    int ii, jj;
+    int jj;
     int posProdCon = Bs_.size();
     double dTemp;
     double dLinear = 0;
@@ -507,7 +520,6 @@ void BiqModel::AddProdCons()
             //std::printf("pos of the con %d\n",iEqualityIsLinear_.at(k));
             for(auto & it: Bs_.at(iEqualityIsLinear_.at(k)))
             {
-                ii = it.i_;
                 jj = it.j_;
                 dTemp = it.dVal_;
                 // dTemp xj xr
@@ -604,13 +616,11 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     int nAdded = 0;
     int nSubtracted = 0;
     int nbitalpha = 0;
-    int nHeurRuns = 10*nVar_sub_;
     int len_y = mA_ + mB_ + nIneq_;
 
     double dMinAllIneq;
-    double dAlpha = 10.0;
-    double dTol = 8e-2;
-    double dMinTol = 5e-2;
+    
+    
     double dRetBound = 0.0;
     double dPrev_f = MAXFLOAT;
     double  bestVal;
@@ -618,15 +628,20 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     bool prune = false;
     bool bGiveUp = false;
     bool bStopSDPBound = false;
+
     // param
-    int maxNAiter = 50;
-    int nMinAdded = 50;
-    int MinNiter = 12;
-    int nMaxIter = 100;
-    int nitermax = 2000;
-    double dMinAlpha = 1e-5;
-    double dScaleAlpha = 0.5;
-    double dScaleTol = 0.93;
+    const int nHeurRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
+    const int maxNAiter = BiqPar_->entry(BiqParams::nMaxAlphaIter);
+    const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
+    const int MinNiter = BiqPar_->entry(BiqParams::nMinBoundingIter);
+    const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
+    const int nitermax = BiqPar_->entry(BiqParams::nMaxBFGSIter);
+    const double dMinAlpha = BiqPar_->entry(BiqParams::dMinAlpha);
+    const double dScaleAlpha = BiqPar_->entry(BiqParams::dSacleAlpha);
+    const double dScaleTol = BiqPar_->entry(BiqParams::dScaleTol);
+    const double dMinTol = BiqPar_->entry(BiqParams::dMinTol);
+    double dAlpha = BiqPar_->entry(BiqParams::dInitAlpha);
+    double dTol = BiqPar_->entry(BiqParams::dInitTol);
     // Biq.par
 
     // 
@@ -755,7 +770,7 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
         std::printf("======================================================================================\n");
     }
 
-    std::printf("%4d  %6.1f  %5.1f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %20.16e  %6.0e  %4d  -%-3d  +%-3d\n", 
+    std::printf("%4d  %6.1f  %5.4f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %20.16e  %6.0e  %4d  -%-3d  +%-3d\n", 
                 iter, 
                 0.0, /* TODO time*/
                 dGap, // f_, 
@@ -1744,9 +1759,9 @@ double BiqModel::GetViolatedCuts()
     double dRetMinIneq = INFINITY;
     double dTestIneq;
     int i, j, k, type = 0;
-    // TODO make following data a param
-    double dGapCuts = -5e-2;
-    int nCuts = 50000;
+    // params
+    const double dGapCuts = BiqPar_->entry(BiqParams::dGapCuts);
+    const int nCuts = BiqPar_->entry(BiqParams::nCuts);
     BiqTriInequality btiTemp;
     BiqTriTuple bttTemp;
     TriMap::iterator itMap;

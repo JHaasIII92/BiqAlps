@@ -10,6 +10,7 @@
             "request": "launch",
             "cwd": "/workspaces/BiqAlps/src",
             "program": "/workspaces/BiqAlps/src/Biq",
+            "args": ["-param", "/workspaces/BiqAlps/src/Biq.par"],
             "MIMode": "gdb",
             "miDebuggerPath": "/usr/bin/gdb"
         }
