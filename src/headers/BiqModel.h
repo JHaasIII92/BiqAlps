@@ -38,7 +38,9 @@ private:
     std::vector<Sparse> Bs_;     // Equality constraint matrix
     double *b_;                            // Right-hand-side equality constraints
     double *b_original_;                            // Right-hand-side equality constraints
+    int mB_original_;                               // Number of equality constraints from original data
     int mB_;                               // Number of equality constraints
+    
     std::vector<int> iEqualityIsLinear_;
 
     /* sub model data*/

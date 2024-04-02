@@ -28,6 +28,7 @@ void BiqModel::InitModel()
     
     mA_ = As_.size();
 
+    mB_original_ = Bs_.size();
     mB_ = Bs_.size() + N_ ;
     if(bProdCons) mB_ += iEqualityIsLinear_.size()*nVar_;
 
@@ -1914,11 +1915,10 @@ bool BiqModel::isFeasibleSolution(std::vector<int> solution)
     solution.at(nVar_) = 1; 
 
     // loop over equality cons of master problem;
-    i = 0;
-    for(auto &itCons : Bs_)
+    for(int eqCon = 0; eqCon < mB_original_; ++eqCon)
     {
         dSum  = 0;
-        for(auto &it : itCons)
+        for(auto &it : Bs_.at(eqCon))
         {
             dTmp = it.dVal_ * solution.at(it.i_) * solution.at(it.j_);
             dSum += dTmp;
@@ -1929,13 +1929,12 @@ bool BiqModel::isFeasibleSolution(std::vector<int> solution)
         }
 
         // check that the sum matches the rhs
-        if(dSum != b_[i])
+        if(dSum != b_[eqCon])
         {
             //std::printf("dSum = %f \t b_[%d] = %f\n", dSum, i, b_[i]);
             bRet = false;
             break;
         }
-        ++i; 
     }
 
     // loop over inequality cons of master problem;
