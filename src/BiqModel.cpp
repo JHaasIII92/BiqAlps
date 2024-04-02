@@ -414,7 +414,6 @@ void BiqModel::readInstance(const char* strDataFile)
 
 void BiqModel::InitEmptyModel()
 {
-    printf("BiqModel::InitModel() \n");
     BiqPar_ = new BiqParams;
     ISUPPZ_ = NULL;
     X_ = NULL;
@@ -461,8 +460,8 @@ BiqModel::~BiqModel()
     FREE_DATA(Q_); 
     FREE_DATA(a_); 
     FREE_DATA(b_); 
+    delete BiqPar_;
 }
-
 /// @brief 
 /// @param encode 
 /// @return 
