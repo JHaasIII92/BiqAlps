@@ -9,5 +9,5 @@ RUN apt-get -y install --no-install-recommends ca-certificates
 RUN git clone https://github.com/coin-or/coinbrew /var/coin-or
 WORKDIR /var/coin-or
 RUN ./coinbrew fetch Alps@master
-RUN ./coinbrew build  --tests none Alps
+RUN ./coinbrew build --tests none Alps --enable-static --disable-shared --with-mpi-cflags="$(pkg-config --cflags mpi)" --with-mpi-lflags="$(pkg-config --libs mpi)" MPICC=mpicc MPICXX=mpiCC
 RUN apt-get -y install libopenblas-dev
