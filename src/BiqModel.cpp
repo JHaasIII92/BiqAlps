@@ -291,10 +291,7 @@ void BiqModel::readInstance(const char* strDataFile)
                 // If linear, add product constraints
                 if(bLinear)
                 {
-                    std::printf("pre push back\n");
                     iEqualityIsLinear_.push_back(pos_b);
-                    std::printf("post push back\n");
-
                 }
 
                 Bs_.at(pos_b) = sparseCon;
@@ -530,7 +527,7 @@ void BiqModel::AddProdCons()
     double dTemp;
     double dLinear = 0;
     // lopp over the the 
-    std::printf("Adding Prod Cons\n");
+    //std::printf("Adding Prod Cons\n");
     //std::printf("mB_ = %d \t Size(Bs_) = %d \t Number of Diag Cons = %d \t Equality Cons = %d\n", mB_, Bs_.size(), N_, iEqualityIsLinear_.size());
 
     // k = positon of equality con
@@ -739,12 +736,13 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nitermax)
         {
+            /*
             if (prune) std::printf("Prune\n");
             if (bGiveUp) std::printf("Give Up\n");
             if (bStopSDPBound) std::printf("Stop SDP Bound\n");
             if (iStatus == -1) std::printf("Status -1\n");
             if (nbit >= nitermax) std::printf("nbit >= nitermax\n");
-            //std::printf("gap: |%f - %f| = %f\n",bestVal,  dRetBound, fabs(bestVal - dRetBound));
+            */
             break;
         }
         // update parameters
@@ -2189,12 +2187,12 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
     if(max_problem_ && dVal > bestVal)
     {
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dVal);
-        printf("Beta updated => %f\n",-dVal);
+        //printf("Beta updated => %f\n",-dVal);
     }
     else if(!max_problem_ && dVal < bestVal)
     {     
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
-        printf("Beta updated => %f\n",dVal);
+        ///printf("Beta updated => %f\n",dVal);
     }   
     else
     {
