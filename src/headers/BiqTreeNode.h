@@ -91,13 +91,12 @@ public:
     virtual std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > 
         branch();
     
-    /*
-    Maybe we need   .. I think we were not returning an AlpsReturnStatus last time
-    /// Pack Alps portion of node into an encoded object.
+
+    using AlpsTreeNode::encode;
+    /// Encode this into the given AlpsEncoded object.
     virtual AlpsReturnStatus encode(AlpsEncoded * encoded) const;
-    /// Unpack Alps portion of node into this from an encoded object.
+    /// Decode the given AlpsEncoded object into this.
     virtual AlpsReturnStatus decodeToSelf(AlpsEncoded & encoded);
-    */
     virtual AlpsKnowledge * decode(AlpsEncoded & encoded) const;
 
     /*

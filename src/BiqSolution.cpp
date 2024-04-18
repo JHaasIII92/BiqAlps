@@ -21,9 +21,19 @@ BiqSolution::~BiqSolution()
 {
 
 }
-AlpsKnowledge * BiqSolution::decode(AlpsEncoded & encode) const
+AlpsReturnStatus decodeToSelf(AlpsEncoded & encoded)
 {
     std::printf("AlpsKnowledge * BiqSolution::decode\n");
     std::cerr << "Not implemented!" << std::endl;
     throw std::exception();
+}
+
+AlpsReturnStatus BiqSolution::encode(AlpsEncoded * encoded) const  
+{
+  return AlpsReturnStatusOk;
+}
+
+// Note: write and read sequence MUST same!
+AlpsKnowledge * BiqSolution::decode(AlpsEncoded& encoded) const {
+  return new BiqSolution(model_, solution_, value_);
 }

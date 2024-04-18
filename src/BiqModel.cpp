@@ -463,17 +463,40 @@ BiqModel::~BiqModel()
     FREE_DATA(b_); 
     delete BiqPar_;
 }
-/// @brief 
-/// @param encode 
-/// @return 
-AlpsKnowledge * BiqModel::decode(AlpsEncoded & encode) const
+
+
+AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
 {
-    std::printf("AlpsKnowledge * BiqModel::decode\n");
-    std::cerr << "Not implemented!" << std::endl;
-    throw std::exception();
+  AlpsReturnStatus status = AlpsReturnStatusOk;
+
+  //------------------------------------------------------
+  // Encode Alps part.
+  //------------------------------------------------------
+
+  status = AlpsModel::encode(encoded);
+
+  return status;
 }
 
-/// @brief 
+AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
+{
+  AlpsReturnStatus status = AlpsReturnStatusOk;
+
+  //------------------------------------------------------
+  // Dencode Alps part.
+  //------------------------------------------------------
+
+  status = AlpsModel::decodeToSelf(encoded);
+
+  return status;
+}
+
+AlpsKnowledge * BiqModel::decode(AlpsEncoded & encoded) const {
+  std::cerr << "Not implemented!" << std::endl;
+  throw std::exception();
+}
+
+
 void BiqModel::AddDiagCons()
 {
     // resize ?

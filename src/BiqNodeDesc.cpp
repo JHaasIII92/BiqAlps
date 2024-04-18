@@ -29,17 +29,29 @@ std::vector<BiqVarStatus> const BiqNodeDesc::getVarStati() const
     return varStatus_;
 }
 
-AlpsKnowledge * BiqNodeDesc::decode(AlpsEncoded & encode) const
-{
-    std::cerr << "BiqNodeDesc::decode ... Not implemented!" << std::endl;
-    throw std::exception();
-}
-
-
 void BiqNodeDesc::bound(int & iBound, std::vector<int> solution)
 {
     std::cerr << "BiqNodeDesc::bound(int & iBound, std::vector<int> solution)" << std::endl;
 }
 
+/*
+    MPI methods... 
+    TODO: Encode object data using writeRep and Decode with readRep
+*/
 
-                            
+/// Pack this node description into the given #AlpsEncoded object.
+AlpsReturnStatus BiqNodeDesc::encode(AlpsEncoded * encoded) const 
+{
+  return AlpsReturnStatusOk;
+}
+
+/// Unpack fields from the given #AlpsEncoded object.
+AlpsReturnStatus BiqNodeDesc::decodeToSelf(AlpsEncoded & encoded) 
+{
+  return AlpsReturnStatusOk;
+}
+
+AlpsNodeDesc * BiqNodeDesc::decode(AlpsEncoded & encoded) const {
+  std::cerr << "Not implemented!" << std::endl;
+  throw std::exception();
+}

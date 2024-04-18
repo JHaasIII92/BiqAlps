@@ -122,7 +122,14 @@ public:
     double GetObjective(){return floor(f_);}
 
     inline bool isMax() const { return max_problem_;}
-    virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
+    
+    /// Get encode from AlpsModel.
+    using AlpsKnowledge::encode;
+    /// Encode this into the given AlpsEncoded object.
+    virtual AlpsReturnStatus encode(AlpsEncoded * encoded) const;
+    /// Decode the given AlpsEncoded object into this.
+    virtual AlpsReturnStatus decodeToSelf(AlpsEncoded & encoded);
+    virtual AlpsKnowledge * decode(AlpsEncoded & encoded) const;
 
     double SDPbound(std::vector<BiqVarStatus> vbiqVarStatus, bool bRoot);
 

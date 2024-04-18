@@ -52,7 +52,13 @@ public:
     BiqVarStatus getVarStatus(const int i) { return varStatus_.at(i);};
     std::vector<BiqVarStatus> const getVarStati() const;
 
-    virtual AlpsKnowledge * decode(AlpsEncoded & encode) const;
+    /// Grab encode function from #AlpsKnowledge
+    using AlpsKnowledge::encode;
+    /// Pack this node description into the given #AlpsEncoded object.
+    virtual AlpsReturnStatus encode(AlpsEncoded * encoded) const;
+    /// Unpack fields from the given #AlpsEncoded object.
+    virtual AlpsReturnStatus decodeToSelf(AlpsEncoded & encoded);
+    virtual AlpsNodeDesc * decode(AlpsEncoded & encoded) const;
 
     BiqModel* model() { return model_; };
     BiqModel const * model() const { return model_; };

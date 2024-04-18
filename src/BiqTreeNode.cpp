@@ -196,16 +196,6 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     return newNodes;
 }
 
-
-AlpsKnowledge * BiqTreeNode::decode(AlpsEncoded & encoded) const{
-    
-    std::printf("AlpsKnowledge * BiqTreeNode::decode\n");
-    std::cout << "BiqTreeNode::decode" << std::endl;
-    BiqTreeNode * nn = new BiqTreeNode(dynamic_cast<BiqNodeDesc*>(desc_)->model());
-    return nn;
-}
-
-
 void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<BiqVarStatus> varStatus)
 {
     double dMaxVal = -INFINITY;
@@ -252,4 +242,27 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
    }
    //printf("fracSol.at(%d) = %f\n", branchOn_, fracSol.at(branchOn_));
    //exit(1);
+}
+
+
+AlpsReturnStatus BiqTreeNode::encode(AlpsEncoded * encoded) const {
+  AlpsReturnStatus status;
+  status = AlpsTreeNode::encode(encoded);
+  //assert(status==AlpsReturnStatusOk);
+  return status;
+}
+
+/// Decode the given AlpsEncoded object into this.
+AlpsReturnStatus BiqTreeNode::decodeToSelf(AlpsEncoded & encoded) {
+  AlpsReturnStatus status;
+  status = AlpsTreeNode::decodeToSelf(encoded);
+  return status;
+}
+
+AlpsKnowledge * BiqTreeNode::decode(AlpsEncoded & encoded) const{
+    
+    std::printf("AlpsKnowledge * BiqTreeNode::decode\n");
+    std::cout << "BiqTreeNode::decode" << std::endl;
+    BiqTreeNode * nn = new BiqTreeNode(dynamic_cast<BiqNodeDesc*>(desc_)->model());
+    return nn;
 }
