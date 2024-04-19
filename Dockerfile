@@ -2,7 +2,12 @@ FROM ubuntu:20.04
 
 
 ENV TZ="America/Chicago"
+ENV TZ=UTC
 RUN apt-get update
+RUN apt-get install -y tzdata 
+RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime 
+RUN dpkg-reconfigure --frontend noninteractive tzdata 
+RUN echo $LOCATION > /etc/location 
 RUN apt-get -y install --no-install-recommends git subversion gcc g++ make wget gfortran patch pkg-config file
 RUN apt-get -y install --no-install-recommends libgfortran-10-dev libblas-dev liblapack-dev libmetis-dev libnauty2-dev
 RUN apt-get -y install --no-install-recommends ca-certificates
