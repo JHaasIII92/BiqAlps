@@ -13,10 +13,7 @@ RUN apt-get -y install --no-install-recommends libgfortran-10-dev libblas-dev li
 RUN apt-get -y install --no-install-recommends ca-certificates
 RUN apt-get -y install less vim htop
 RUN apt-get -y install libopenblas-dev
-RUN apt-get -y install openmpi-bin libopenmpi-dev
 RUN git clone https://github.com/coin-or/coinbrew /var/coin-or
 WORKDIR /var/coin-or
-RUN  ./coinbrew fetch Cbc@2.10.0
-RUN  ./coinbrew build Cbc
 RUN ./coinbrew fetch Alps@2.0.0
-RUN ./coinbrew build Alps --enable-static --disable-shared --with-mpi-cflags="$\(pkg-config --cflags mpi\)" --with-mpi-lflags="$\(pkg-config --libs mpi\)" MPICC=mpicc MPICXX=mpiCC
+RUN ./coinbrew build --tests none Alps 
