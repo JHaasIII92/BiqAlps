@@ -247,8 +247,14 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
 
 AlpsReturnStatus BiqTreeNode::encode(AlpsEncoded * encoded) const {
   AlpsReturnStatus status;
+  // Alps part
   status = AlpsTreeNode::encode(encoded);
-  //assert(status==AlpsReturnStatusOk);
+  
+  // Biq part
+  encoded->writeRep(branchOn_);
+  encoded->writeRep(bCloseToZero_);
+
+
   return status;
 }
 
@@ -256,6 +262,10 @@ AlpsReturnStatus BiqTreeNode::encode(AlpsEncoded * encoded) const {
 AlpsReturnStatus BiqTreeNode::decodeToSelf(AlpsEncoded & encoded) {
   AlpsReturnStatus status;
   status = AlpsTreeNode::decodeToSelf(encoded);
+
+  encoded.readRep(branchOn_);
+  encoded.readRep(bCloseToZero_);
+  
   return status;
 }
 

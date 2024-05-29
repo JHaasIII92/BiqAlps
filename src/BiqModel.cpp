@@ -464,33 +464,282 @@ BiqModel::~BiqModel()
 
 AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
 {
-  AlpsReturnStatus status = AlpsReturnStatusOk;
+    AlpsReturnStatus status = AlpsReturnStatusOk;
 
-  //------------------------------------------------------
-  // Encode Alps part.
-  //------------------------------------------------------
+    //------------------------------------------------------
+    // Encode Alps part.
+    //------------------------------------------------------
 
-  status = AlpsModel::encode(encoded);
+    status = AlpsModel::encode(encoded);
 
-  return status;
+    //------------------------------------------------------
+    // Encode Biq part.
+    //------------------------------------------------------
+    // copy data from Sparse std:vectors
+    int pos;
+    int sizeAs, sizeBs;
+    int* i_As, j_As;
+    int* i_Bs, j_Bs;
+    int* indexAs;
+    int* indexBs;
+    double* dVal_As;
+    double* dVal_Bs;
+
+    // need to figure out the size of As_
+    sizeAs = 0;
+    for(auto& it: As_)
+    {
+        sizeAs += it.size();
+    }
+    // if we have anything in As_
+    if(sizeAs > 0)
+    {
+        // allocate memory needed;
+        indexAs = new int[mA_];
+        i_As = new int[sizeAs];
+        j_As = new int[sizeAs];
+        dVal_As = new double[sizeAs];
+
+        //loop over sparse data structure
+        pos = 0;
+        for(i = 0; i < mA_; ++i)
+        {
+            // set index to sie maybe use better name
+            indexAs[i] = As_.at(i).size;
+            // loop over the vecotr of BiqTriples at i
+            for(auto& it: As_.at(i))
+            {
+                i_As[pos] = it.i_;
+                j_As[pos] = it.j_;
+                dVal_Bs[pos] = it.dVal_;
+                ++pos;
+            }
+        }
+    }
+    else
+    {
+        indexAs = 0;
+        i_As = 0;
+        j_As = 0;
+        dVal_As = 0;
+    }
+
+
+    // need to figure out the size of Bs_
+    sizeBs = 0;
+    for(auto& it: Bs_)
+    {
+        sizeBs += it.size();
+    }
+    // if we have anything in Bs_
+    if(sizeBs > 0)
+    {
+        // allocate memory needed;
+        indexBs = new int[mB_];
+        i_Bs = new int[sizeBs];
+        j_Bs = new int[sizeBs];
+        dVal_Bs = new double[sizeBs];
+
+        // loop over sparse data structure
+        pos = 0;
+        for(i = 0; i < mB_; ++i)
+        {
+            // set index to sie maybe use better name
+            indexBs[i] = Bs_.at(i).size;
+            // loop over the vecotr of BiqTriples at i
+            for(auto& it: Bs_.at(i))
+            {
+                i_Bs[pos] = it.i_;
+                j_Bs[pos] = it.j_;
+                dVal_Bs[pos] = it.dVal_;
+                ++pos;
+            }
+        }
+    }
+    else
+    {
+        indexBs = 0;
+        i_Bs = 0;
+        j_Bs = 0;
+        dVal_Bs = 0;
+    }
+
+    // write the easy stuff Int, Double, Bool ...
+    encoded->writeRep(max_problem_);
+    encoded->writeRep(N_);
+    encoded->writeRep(nVar_);
+    encoded->writeRep(mB_original_); // needed for computing objective value
+    
+
+    // write the arrays
+    encoded->writeRep(Q_,N_*N_);
+    encoded->writeRep(a_,mA_);
+    encoded->writeRep(b_,mB_);
+
+    // finally the data structures like std::vectors
+    encoded->writeRep(mA_);
+    encoded->writeRep(sizeAs);
+    encoded->writeRep(indexAs,mA_);
+    encoded->writeRep(i_As,sizeAs);
+    encoded->writeRep(j_As,sizeAs);
+    encoded->writeRep(dVal_As,sizeAs);
+
+    encoded->writeRep(mB_);
+    encoded->writeRep(sizeBs);
+    encoded->writeRep(indexBs,mB_);
+    encoded->writeRep(i_Bs,sizeBs);
+    encoded->writeRep(j_Bs,sizeBs);
+    encoded->writeRep(dVal_Bs,sizeBs);
+
+    return status;
 }
 
 AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
 {
-  AlpsReturnStatus status = AlpsReturnStatusOk;
+    AlpsReturnStatus status = AlpsReturnStatusOk;
 
-  //------------------------------------------------------
-  // Dencode Alps part.
-  //------------------------------------------------------
+    //------------------------------------------------------
+    // Dencode Alps part.
+    //------------------------------------------------------
+    status = AlpsModel::decodeToSelf(encoded);
 
-  status = AlpsModel::decodeToSelf(encoded);
+    //------------------------------------------------------
+    // Decode Biq part.
+    //------------------------------------------------------
+    
+    int pos, sizeTriple;
+    int sizeAs, sizeBs;
+    int* i_As = NULL;
+    int* j_As = NULL;
+    int* i_Bs = NULL;
+    int* j_Bs = NULL;
+    int* indexAs = NULL;
+    int* indexBs = NULL;
+    int i_tmp, j_tmp;
+    double* dVal_As = NULL;
+    double* dVal_Bs = NULL;
+    double dVal_tmp
 
-  return status;
+    // Read the data in the same order it was written
+    encoded.readRep(max_problem_);
+    encoded.readRep(N_);
+    encoded.readRep(nVar_);
+    encoded.readRep(mB_original_);
+
+    encoded.readRep(Q_,N_*N_);
+    encoded.readRep(a_,mA_);
+    encoded.readRep(b_,mB_);
+
+    encoded.readRep(mA_);
+    encoded.readRep(sizeAs);
+    encoded.readRep(indexAs,mA_);
+    encoded.readRep(i_As,sizeAs);
+    encoded.readRep(j_As,sizeAs);
+    encoded.readRep(dVal_As,sizeAs);
+
+    encoded.readRep(mB_);
+    encoded.readRep(sizeBs);
+    encoded.readRep(indexBs,mB_);
+    encoded.readRep(i_Bs,sizeBs);
+    encoded.readRep(j_Bs,sizeBs);
+    encoded.readRep(dVal_Bs,sizeBs);
+
+    // now that data is read build As_ and Bs_
+    As_.resize(mA_);
+    pos = 0;
+    for(int i = 0; i < mA_, ++i)
+    {
+        //
+        sizeTriple = indexAs[i];
+        As_.at(i).resize(sizeTriple);
+        for(auto& it: As_.at(i))
+        {
+            it.i_ = i_As[pos];
+            it.j_ = j_As[pos];
+            it.dVal_ = dVal_As[pos];
+            ++pos;
+        }
+    }
+
+    Bs_.resize(mB_);
+    pos = 0;
+    for(int i = 0; i < mB_, ++i)
+    {
+        //
+        sizeTriple = indexBs[i];
+        Bs_.at(i).resize(sizeTriple);
+        for(auto& it: Bs_.at(i))
+        {
+            it.i_ = i_Bs[pos];
+            it.j_ = j_Bs[pos];
+            it.dVal_ = dVal_Bs[pos];
+            ++pos;
+        }
+    }
+
+    // For now this is init() with out the data set above
+    // get the params needed for initilization 
+    const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
+    const int nCuts = BiqPar_->entry(BiqParams::nCuts);
+
+    ISUPPZ_ = new int[2*N_];
+    X_ = new double[N_*N_];
+    W_ = new double[N_];
+    Z_ = new double[N_*N_];
+
+    
+    /* DSYEVR optimal workspace query */
+    M_ = 0;
+    nDWORK_ = 26 * N_;
+    nIWORK_ =  10 * N_;
+    DWORK_ = new double[nDWORK_];
+    IWORK_ = new int[nIWORK_]; 
+    
+    a_sub_ = new double[mA_];
+    b_sub_ = new double[mB_];
+    Q_sub_ = new double[N_*N_];
+    vOffset_.resize(nVar_, 0);
+
+    /* L-BFGS-B Data */
+    int nMax = mB_ + mA_ + MaxNineqAdded;
+    int wa_length = (2 * mmax + 5) * nMax + 11 * mmax * mmax + 8 * mmax;
+    int iwa_length = 3 * nMax;
+
+    f_ = 0.0;
+    g_ = new double[nMax];
+    y_ = new double[nMax];
+    binf_ = new double[nMax];
+    bsup_ = new double[nMax];
+    nbd_ = new int[nMax];
+
+    wa_ = new double[wa_length];
+    iwa_ = new int[iwa_length];
+
+    
+    AllocSubCons();
+    SetConSparseSize();
+    // Set cut data 
+    Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
+    container.reserve(nCuts);
+
+    nIneq_ = 0;
+
+    // set some memory for the sTemp_sub_ matrix
+    sTmp_sub_.resize(N_*N_);
+    pdTmp_sub_ = new double[N_*N_];
+    pdTmpLinear_ = new double[nVar_];
+
+    viSolution_1_.resize(N_);
+    viSolution_2_.resize(N_);
+
+    vdFracSol_.resize(nVar_);
+
+    return status;
 }
 
 AlpsKnowledge * BiqModel::decode(AlpsEncoded & encoded) const {
-  std::cerr << "Not implemented!" << std::endl;
-  throw std::exception();
+    std::cerr << "Not implemented!" << std::endl;
+    throw std::exception();
 }
 
 
@@ -2239,7 +2488,6 @@ bool BiqModel::pruneTest(double dBound)
     }
     
     if(
-        //bestVal < -INT32_MAX &&
         (
         (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
         (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal)

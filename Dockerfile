@@ -15,5 +15,5 @@ RUN apt-get -y install less vim htop
 RUN apt-get -y install libopenblas-dev
 RUN git clone https://github.com/coin-or/coinbrew /var/coin-or
 WORKDIR /var/coin-or
-RUN ./coinbrew fetch Alps@2.0.0
-RUN ./coinbrew build --tests none Alps 
+RUN ./coinbrew fetch Alps@master
+RUN ./coinbrew --tests none build Alps 

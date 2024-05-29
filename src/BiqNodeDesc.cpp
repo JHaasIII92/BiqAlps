@@ -42,12 +42,53 @@ void BiqNodeDesc::bound(int & iBound, std::vector<int> solution)
 /// Pack this node description into the given #AlpsEncoded object.
 AlpsReturnStatus BiqNodeDesc::encode(AlpsEncoded * encoded) const 
 {
+  
+  int *ipStatus;
+  int sizeStatus;
+
+  sizeStatus = varStatus_.size();
+  if(sizeStatus > 0)
+  {
+    // give ipstatus the memory needed
+    ipStatus = new int[sizeStatus];
+    // fill ipstatus
+    for(int i = 0; i < sizeStatus; ++i)
+    {
+      ipStatus[i] = static_cast<int>(varStatus_.at(i));
+    }
+  }
+  else
+  {
+    ipStatus = 0;
+  }
+  // easy part
+  encoded->writeRep(dQuality_);
+  encoded->writeRep(iBranchedOn_);
+  // tricky
+  encoded->writeRep(sizeStatus);
+  encoded->writeRep(ipStatus,sizeStatus);
   return AlpsReturnStatusOk;
 }
 
 /// Unpack fields from the given #AlpsEncoded object.
 AlpsReturnStatus BiqNodeDesc::decodeToSelf(AlpsEncoded & encoded) 
 {
+  int *ipStatus;
+  int sizeStatus;
+
+  encoded.readRep(dQuality_);
+  encoded.readRep(iBranchedOn_);
+
+  encoded.readRep(sizeStatus);
+  encoded.readRep(ipStatus,sizeStatus);
+
+  // build the vector by looping over ipStatus
+  varStatus_.resize(sizeStatus);
+  for(int i = 0; i < sizeStatus; ++i)
+  {
+    varStatus_.at(i) = static_cast<BiqVarStatus>(ipStatus[i]);
+  }
+
   return AlpsReturnStatusOk;
 }
 
