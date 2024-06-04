@@ -35,7 +35,7 @@
 #include "biqcrunch.h"
 #include "global.h"
 
-extern char heur_name[]; // defined in heur.c (specific to problem)
+Problem *SP;
 
 
 //============== Read data from BC file ==================//

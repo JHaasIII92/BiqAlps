@@ -31,13 +31,13 @@
 
 #include "bb.h"
 #include "biqcrunch.h"
+#include "global.h"
 
-extern BiqCrunchParameters params;
 
 /**
  * Name of the heuristic printed in the output file
  */
-char heur_name[] = "Max-Cut";
+char *heur_name = "Max-Cut";
 
 
 /**

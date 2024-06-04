@@ -37,14 +37,14 @@
 
 #include "bb.h"
 #include "biqcrunch.h"
+#include "global.h"
 
 ////////////////////////////// Global variables //////////////////////////////////
-extern BiqCrunchParameters params;
 
 /**
  * Name of the heuristic printed in the output file
  */
-char heur_name[] = "Max-independent-set";
+char *heur_name = "Max-independent-set";
 
 
 //Adjacency sparse matrix of the problem.
@@ -790,10 +790,10 @@ double bab_stable_heuristic3(Problem * P0, BobNode *node, int *x) {
             free(SubM_adj->i);
             free(SubM_adj->val);
             free(SubM_adj->j);
-            free(SubM_adj);
             free(orderSubsetNode);
 
         } while (SubM_adj->nnz != 0 && nbNodeSetToOne > 0); //while we find an edge in the sparse adjacency matrix and the number of node we have set to one is positive
+        free(SubM_adj);
     }
 
     //free memory

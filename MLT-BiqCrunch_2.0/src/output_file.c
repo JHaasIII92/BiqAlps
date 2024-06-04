@@ -36,6 +36,7 @@
 #include "biqcrunch.h"
 #include "global.h"
 
+FILE *final_output;
 char gen_output_path[200];
 
 /*

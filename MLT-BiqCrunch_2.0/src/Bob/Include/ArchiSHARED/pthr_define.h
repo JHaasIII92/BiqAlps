@@ -9,7 +9,7 @@
 
 #include<pthread.h>
 
-#define MAXPROCS 40
+#define MAXPROCS 1024
 
 
 /*--- VERROU ETC... -------*/

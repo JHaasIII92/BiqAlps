@@ -37,6 +37,8 @@
 #include "biqcrunch.h"
 #include "global.h"
 
+int EVALN;
+
 static int stopped = 0;// True if the algorithm stopped at root node or after a time limit
 static double best_eval; // Best evaluation value. This value keeps the value of the more promising node if the algorithm is interrupted at root node or after a time limit
 static double TEMPI; // initial time (modified once)
@@ -411,7 +413,7 @@ void Bob_GenChild(BobNode *Nodp, int Depth, BobTExpCt *ExpCt)
 void Bob_End() 
 {
     int i;
-    char ch, output_path[200];
+    char ch, output_path[300];
     /*
      * Print results to the standard output and to the final output file
      */

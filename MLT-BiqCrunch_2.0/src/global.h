@@ -33,12 +33,13 @@
 /********************************************************/
 
 /********************************************************/
-BiqCrunchParameters params; //only modified by read_parameters.c. Used in read_parameters.c, bob_functions.c, bounding_procedure.c, evaluate_node.c, update_solution.c, inequalities.c, output_file.c
-Problem *SP; // Original problem instance. Only modified by in bob_functions.c (when reading inputfile). Used in bounding_procedure.c, build_problem.c, evaluate_node.c, update_solution.c
-FILE *output[MAXPROCS]; // output files (1 / thread)
-FILE *final_output; // output file
+extern BiqCrunchParameters params; //only modified by read_parameters.c. Used in read_parameters.c, bob_functions.c, bounding_procedure.c, evaluate_node.c, update_solution.c, inequalities.c, output_file.c
+extern Problem *SP; // Original problem instance. Only modified by in bob_functions.c (when reading inputfile). Used in bounding_procedure.c, build_problem.c, evaluate_node.c, update_solution.c
+extern FILE *output[MAXPROCS]; // output files (1 / thread)
+extern FILE *final_output; // output file
 extern char gen_output_path[200]; // path for concatenate output files
-int EVALN; // Number of global evaluated nodes
+extern int EVALN; // Number of global evaluated nodes
+extern char *heur_name; // defined in heur.c (specific to problem)
 
 /********************************************************/
 /*************** Specific to node ***********************/

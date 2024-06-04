@@ -31,13 +31,12 @@
 
 #include "bb.h"
 #include "biqcrunch.h"
-
-extern BiqCrunchParameters params;
+#include "global.h"
 
 /**
  * Name of the heuristic printed in the output file
  */
-char heur_name[] = "Generic";
+char *heur_name = "Generic";
 
 
 /**

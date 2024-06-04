@@ -34,6 +34,7 @@
 #include "biqcrunch.h"
 #include "global.h"
 
+FILE *output[MAXPROCS];
 
 int updateSolution(BobNode *node, int *x, int credit) 
 {

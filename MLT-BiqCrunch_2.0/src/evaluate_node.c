@@ -50,7 +50,7 @@ double Evaluate(BobNode *node, Problem *SP, Problem *PP)
     int intbound;
     int temp_x[BobPbSize];
     int current_BobId = setget_bobId(0);
-    char current_output_path[200];
+    char current_output_path[300];
 
     Bob_STEVL(); // increment the number of evaluated nodes of the current thread
 

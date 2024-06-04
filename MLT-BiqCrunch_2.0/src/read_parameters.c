@@ -35,8 +35,7 @@
 #include "bb.h"
 #include "biqcrunch.h"
 
-extern FILE *output;
-extern BiqCrunchParameters params;
+BiqCrunchParameters params;
 
 /*
  * Read the parameters contained in the file given by the argument..

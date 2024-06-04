@@ -33,13 +33,13 @@
 
 #include "bb.h"
 #include "biqcrunch.h"
+#include "global.h"
 
-extern BiqCrunchParameters params;
 
 /*
  * Name of the heuristic printed in the output file
  */
-char heur_name[] = "k-cluster (weighted)";
+char *heur_name = "k-cluster (weighted)";
 
 
 void heurist_kc(int * nsol, int * sol, int N, double *Matrix);
