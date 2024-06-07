@@ -43,7 +43,7 @@ void BiqNodeDesc::bound(int & iBound, std::vector<int> solution)
 AlpsReturnStatus BiqNodeDesc::encode(AlpsEncoded * encoded) const 
 {
   
-  int *ipStatus;
+  int *ipStatus = NULL;
   int sizeStatus;
 
   sizeStatus = varStatus_.size();

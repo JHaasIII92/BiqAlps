@@ -6,8 +6,6 @@
 
 void BiqModel::InitModel() 
 {
-
-    
     // get the params needed for initilization 
     const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
     const int nCuts = BiqPar_->entry(BiqParams::nCuts);
@@ -413,26 +411,27 @@ void BiqModel::readInstance(const char* strDataFile)
 void BiqModel::InitEmptyModel()
 {
     BiqPar_ = new BiqParams;
-    ISUPPZ_ = NULL;
-    X_ = NULL;
-    W_ = NULL;
-    Z_ = NULL;
-    DWORK_ = NULL;
-    IWORK_ = NULL;
-    a_ = NULL;
-    b_ = NULL;
-    b_sub_ = NULL;
-    a_sub_ = NULL;
-    Q_sub_ = NULL;
-    g_ = NULL;
-    y_ = NULL; 
-    binf_ = NULL;
-    bsup_ = NULL; 
-    nbd_ = NULL; 
-    wa_ = NULL; 
-    iwa_ = NULL;
-    pdTmpLinear_ = NULL;
-    pdTmp_sub_ = NULL;
+    ISUPPZ_ = nullptr;
+    X_ = nullptr;
+    W_ = nullptr;
+    Z_ = nullptr;
+    DWORK_ = nullptr;
+    IWORK_ = nullptr;
+    Q_ = nullptr;
+    a_ = nullptr;
+    b_ = nullptr;
+    b_sub_ = nullptr;
+    a_sub_ = nullptr;
+    Q_sub_ = nullptr;
+    g_ = nullptr;
+    y_ = nullptr; 
+    binf_ = nullptr;
+    bsup_ = nullptr; 
+    nbd_ = nullptr; 
+    wa_ = nullptr; 
+    iwa_ = nullptr;
+    pdTmpLinear_ = nullptr;
+    pdTmp_sub_ = nullptr;
 }
 
 BiqModel::~BiqModel()
@@ -454,11 +453,10 @@ BiqModel::~BiqModel()
     FREE_DATA(wa_);
     FREE_DATA(iwa_);
     FREE_DATA(pdTmpLinear_);
-    FREE_DATA(pdTmp_sub_);    
+    FREE_DATA(pdTmp_sub_);   
     FREE_DATA(Q_); 
     FREE_DATA(a_); 
-    FREE_DATA(b_); 
-    delete BiqPar_;
+    FREE_DATA(b_);     
 }
 
 
@@ -478,8 +476,11 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     // copy data from Sparse std:vectors
     int pos;
     int sizeAs, sizeBs;
-    int* i_As, j_As;
-    int* i_Bs, j_Bs;
+    int NN = N_*N_;
+    int* i_As;
+    int* j_As;
+    int* i_Bs;
+    int *j_Bs;
     int* indexAs;
     int* indexBs;
     double* dVal_As;
@@ -502,10 +503,10 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
 
         //loop over sparse data structure
         pos = 0;
-        for(i = 0; i < mA_; ++i)
+        for(int i = 0; i < mA_; ++i)
         {
-            // set index to sie maybe use better name
-            indexAs[i] = As_.at(i).size;
+            // set index to size maybe use better name
+            indexAs[i] = As_.at(i).size();
             // loop over the vecotr of BiqTriples at i
             for(auto& it: As_.at(i))
             {
@@ -542,10 +543,10 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
 
         // loop over sparse data structure
         pos = 0;
-        for(i = 0; i < mB_; ++i)
+        for(int i = 0; i < mB_; ++i)
         {
             // set index to sie maybe use better name
-            indexBs[i] = Bs_.at(i).size;
+            indexBs[i] = Bs_.at(i).size();
             // loop over the vecotr of BiqTriples at i
             for(auto& it: Bs_.at(i))
             {
@@ -569,22 +570,21 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     encoded->writeRep(N_);
     encoded->writeRep(nVar_);
     encoded->writeRep(mB_original_); // needed for computing objective value
+    encoded->writeRep(mA_);
+    encoded->writeRep(mB_);
     
-
     // write the arrays
-    encoded->writeRep(Q_,N_*N_);
+    encoded->writeRep(Q_,NN);
     encoded->writeRep(a_,mA_);
     encoded->writeRep(b_,mB_);
 
     // finally the data structures like std::vectors
-    encoded->writeRep(mA_);
     encoded->writeRep(sizeAs);
     encoded->writeRep(indexAs,mA_);
     encoded->writeRep(i_As,sizeAs);
     encoded->writeRep(j_As,sizeAs);
     encoded->writeRep(dVal_As,sizeAs);
 
-    encoded->writeRep(mB_);
     encoded->writeRep(sizeBs);
     encoded->writeRep(indexBs,mB_);
     encoded->writeRep(i_Bs,sizeBs);
@@ -609,35 +609,71 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     
     int pos, sizeTriple;
     int sizeAs, sizeBs;
-    int* i_As = NULL;
-    int* j_As = NULL;
-    int* i_Bs = NULL;
-    int* j_Bs = NULL;
-    int* indexAs = NULL;
-    int* indexBs = NULL;
+    int* i_As;
+    int* j_As;
+    int* i_Bs;
+    int* j_Bs;
+    int* indexAs;
+    int* indexBs;
     int i_tmp, j_tmp;
-    double* dVal_As = NULL;
-    double* dVal_Bs = NULL;
-    double dVal_tmp
+    double* dVal_As;
+    double* dVal_Bs;
+    double* Q_copy;
+    double* a_copy;
+    double* b_copy;
+    double dVal_tmp;
+    int NN;
+    size_t i;
 
     // Read the data in the same order it was written
     encoded.readRep(max_problem_);
     encoded.readRep(N_);
     encoded.readRep(nVar_);
     encoded.readRep(mB_original_);
-
-    encoded.readRep(Q_,N_*N_);
-    encoded.readRep(a_,mA_);
-    encoded.readRep(b_,mB_);
-
     encoded.readRep(mA_);
+    encoded.readRep(mB_);
+
+    NN = N_*N_;
+    Q_ = new double[NN];
+    a_ = new double[mA_];
+    b_ = new double[mB_];
+
+    encoded.readRep(Q_copy,NN);
+    encoded.readRep(a_copy,mA_);
+    encoded.readRep(b_copy,mB_);
+
+    
+    // copy Q_ 
+    if(NN > 0)
+    {
+        for(i = 0; i < NN; ++i)
+        {
+            Q_[i] = Q_copy[i];
+        }
+    }
+    // copy a_
+    if(mA_ > 0) 
+    {
+        for(i = 0; i < mA_; ++i)
+        {
+            a_[i] = a_copy[i];
+        }
+    }
+    // copy b_
+    if(mB_ > 0)
+    {
+        for(i = 0; i < mB_; ++i)
+        {
+            b_[i] = b_copy[i];
+        }
+    }
+
     encoded.readRep(sizeAs);
     encoded.readRep(indexAs,mA_);
     encoded.readRep(i_As,sizeAs);
     encoded.readRep(j_As,sizeAs);
     encoded.readRep(dVal_As,sizeAs);
 
-    encoded.readRep(mB_);
     encoded.readRep(sizeBs);
     encoded.readRep(indexBs,mB_);
     encoded.readRep(i_Bs,sizeBs);
@@ -647,7 +683,7 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     // now that data is read build As_ and Bs_
     As_.resize(mA_);
     pos = 0;
-    for(int i = 0; i < mA_, ++i)
+    for(int i = 0; i < mA_; ++i)
     {
         //
         sizeTriple = indexAs[i];
@@ -663,7 +699,7 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
 
     Bs_.resize(mB_);
     pos = 0;
-    for(int i = 0; i < mB_, ++i)
+    for(int i = 0; i < mB_; ++i)
     {
         //
         sizeTriple = indexBs[i];
@@ -687,7 +723,6 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     W_ = new double[N_];
     Z_ = new double[N_*N_];
 
-    
     /* DSYEVR optimal workspace query */
     M_ = 0;
     nDWORK_ = 26 * N_;

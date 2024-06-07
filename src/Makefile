@@ -92,12 +92,12 @@ FFLAGS = $(OPTI) -frecursive -fomit-frame-pointer -fPIC
 CXXLINKFLAGS =  -Wl,--rpath -Wl,/var/coin-or/dist/lib
 
 # Include directories (we use the CYGPATH_W variables to allow compilation with Windows compilers)
-INCL = `PKG_CONFIG_PATH=/var/coin-or/dist/lib/pkgconfig: pkg-config --cflags alps`
+INCL = `PKG_CONFIG_PATH=/lstr/sahara/biqcrunch/dist/lib/pkgconfig:/lstr/sahara/biqcrunch/dist/share/pkgconfig:/lstr/sahara/biqcrunch/dist/lib64/pkgconfig:/lstr/sahara/biqcrunch/dist/lib/pkgconfig:/lstr/sahara/biqcrunch/dist/share/pkgconfig: pkg-config --cflags alps`
 #INCL = -I${prefix}/include/coin-or
 INCL += $(ADDINCFLAGS)
 
 # Linker flags
-LIBS = `PKG_CONFIG_PATH=/var/coin-or/dist/lib/pkgconfig: pkg-config --libs alps --static`
+LIBS = `PKG_CONFIG_PATH=/lstr/sahara/biqcrunch/dist/lib/pkgconfig:/lstr/sahara/biqcrunch/dist/share/pkgconfig:/lstr/sahara/biqcrunch/dist/lib64/pkgconfig:/lstr/sahara/biqcrunch/dist/lib/pkgconfig:/lstr/sahara/biqcrunch/dist/share/pkgconfig: pkg-config --libs alps`
 #LIBS = -L${exec_prefix}/lib -lAlps -lCoinUtils
 LIBS += $(ADDLIBS)
 

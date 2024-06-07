@@ -18,10 +18,10 @@
 #define INFVAL 2147483648
 
 #define FREE_DATA(data)\
-    if(data)\
+    if(data != nullptr)\
     {\
         delete[] data;\
-        data = NULL;\
+        data = nullptr;\
     }
 
 enum BiqVarStatus {

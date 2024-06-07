@@ -30,6 +30,7 @@ AlpsReturnStatus decodeToSelf(AlpsEncoded & encoded)
 
 AlpsReturnStatus BiqSolution::encode(AlpsEncoded * encoded) const  
 {
+  /*
   int* ipSolution;
   int sizeSol;
 
@@ -47,14 +48,15 @@ AlpsReturnStatus BiqSolution::encode(AlpsEncoded * encoded) const
 
   encoded->writeRep(sizeSol);
   encoded->writeRep(ipSolution,sizeSol);
-
+*/
   return AlpsReturnStatusOk;
 }
 
 // Note: write and read sequence MUST same!
 AlpsKnowledge * BiqSolution::decode(AlpsEncoded& encoded) const {
-  int* ipSolution;
-  int sizeSol;
+  /*
+  int* ipSolution = NULL;
+  int sizeSol = 0;
 
   encoded.readRep(value_);
 
@@ -66,6 +68,6 @@ AlpsKnowledge * BiqSolution::decode(AlpsEncoded& encoded) const {
   {
     solution_.at(i) = ipSolution[i];
   }
-
-  return new BiqSolution(model_, solution_, value_);
+*/
+  return new BiqSolution(model_);
 }
