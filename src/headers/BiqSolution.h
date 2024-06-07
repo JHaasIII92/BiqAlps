@@ -40,7 +40,9 @@ public:
   double getObjValue() const { return value_; }
 
   virtual double getQuality() const { return getObjValue(); }
-
+ 
+  /** Print out the solution.*/
+  virtual void print(std::ostream& os) const;
     
 private:
     BiqSolution(BiqSolution const &);

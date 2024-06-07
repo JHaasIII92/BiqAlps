@@ -28,6 +28,25 @@ AlpsReturnStatus decodeToSelf(AlpsEncoded & encoded)
     throw std::exception();
 }
 
+
+void BiqSolution::print(std::ostream& os) const 
+{
+
+  os << "BiqAlps Solution Report: " << std::endl;
+
+  int i = 1;
+  for(auto & it: solution_)
+  {
+    os << "x[" << i << "] = " << it << " ";
+    if(i%5 == 0) os << std::endl;
+
+    ++i;
+  }
+
+  os << std::endl;
+
+}
+
 AlpsReturnStatus BiqSolution::encode(AlpsEncoded * encoded) const  
 {
   /*
