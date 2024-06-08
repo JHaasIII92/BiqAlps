@@ -178,7 +178,7 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
         newNodes.push_back(CoinMakeTriple(descRight, AlpsNodeStatusCandidate, dQuality));
     }
 
-    //std::printf("x[%d] = 1\n",branchOn_);
+    std::printf("x[%d] = 1\n",branchOn_);
     newStatiLeft.at(branchOn_)  = BiqVarFixedToOne;
     AlpsNodeDesc *descLeft = new BiqNodeDesc(model, newStatiLeft);
     ((BiqNodeDesc *)descLeft)->setQuality(dQuality);
@@ -253,26 +253,30 @@ AlpsReturnStatus BiqTreeNode::encode(AlpsEncoded * encoded) const {
   // Biq part
   encoded->writeRep(branchOn_);
   encoded->writeRep(bCloseToZero_);
-
+  status = dynamic_cast<BiqNodeDesc*>(desc_)->encode(encoded);
+  assert(status==AlpsReturnStatusOk);
 
   return status;
 }
 
 /// Decode the given AlpsEncoded object into this.
 AlpsReturnStatus BiqTreeNode::decodeToSelf(AlpsEncoded & encoded) {
-  AlpsReturnStatus status;
-  status = AlpsTreeNode::decodeToSelf(encoded);
-
-  encoded.readRep(branchOn_);
-  encoded.readRep(bCloseToZero_);
-  
-  return status;
+    AlpsReturnStatus status;
+    status = AlpsTreeNode::decodeToSelf(encoded);
+    std::printf("BiqTreeNode::decodeToSelf\n");
+    encoded.readRep(branchOn_);
+    encoded.readRep(bCloseToZero_);
+    status = dynamic_cast<BiqNodeDesc*>(desc_)->decodeToSelf(encoded);
+    assert(status==AlpsReturnStatusOk);
+    return status;
 }
 
 AlpsKnowledge * BiqTreeNode::decode(AlpsEncoded & encoded) const{
     
-    std::printf("AlpsKnowledge * BiqTreeNode::decode\n");
+    std::printf("AlpsKnowledge * BiqTreeNode::decode \n");
+    std::printf("AlpsKnowledge * BiqTreeNode::decode desc_ pointer: %p\n", dynamic_cast<BiqNodeDesc*>(desc_));
     std::cout << "BiqTreeNode::decode" << std::endl;
     BiqTreeNode * nn = new BiqTreeNode(dynamic_cast<BiqNodeDesc*>(desc_)->model());
+    nn->decodeToSelf(encoded);
     return nn;
 }

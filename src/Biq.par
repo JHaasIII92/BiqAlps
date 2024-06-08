@@ -17,15 +17,15 @@ Biq_dGapCuts -5e-2 # [default: -5e-2]
 ########
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
 ########
-Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n40_d025_10_k10_1_noProdCons.bc
-#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n100_d025_k25_1_noProdCons.bc
-
+#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n40_d025_10_k10_1_noProdCons.bc
+Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n100_d025_k25_1_noProdCons.bc
+#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/PB1_n160_d050_k40_noProdCons.bc
 
 Alps_processNum 8
 Alps_hubNum 2
 Alps_masterInitNodeNum 16
 Alps_hubInitNodeNum 32
-Alps_timeLimit 3600.0
+Alps_timeLimit 1200.0           # Make less then pbs Wall time
 Alps_interClusterBalance 1      # 1: balancing load, 0: don't.
 Alps_intraClusterBalance 1      # 1: balancing load, 0: don't.
 Alps_unitWorkNodes 30      # or unit time
