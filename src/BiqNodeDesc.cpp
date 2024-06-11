@@ -19,7 +19,7 @@ model_(model),
 varStatus_(st),
 dQuality_(0.0)
 {
-  std::printf("BiqNodeDesc::BiqNodeDesc    size status: %d\n", varStatus_.size());
+  std::printf("BiqNodeDesc::BiqNodeDesc    size status: %ld\n", varStatus_.size());
 }
 
 BiqNodeDesc::~BiqNodeDesc() 

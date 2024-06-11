@@ -72,6 +72,9 @@ void BiqModel::InitModel()
     viSolution_2_.resize(N_);
 
     vdFracSol_.resize(nVar_);
+
+    testEncodeDecode();
+    exit(0);
 }
 
 
@@ -459,6 +462,29 @@ BiqModel::~BiqModel()
     FREE_DATA(b_);     
 }
 
+void BiqModel::testEncodeDecode() {
+    // Create a BiqModel instance and set some values
+    BiqModel originalModel;
+    // Set values for originalModel...
+
+    // Encode the original model
+    AlpsEncoded encoded;
+    originalModel.encode(encoded);
+
+    // Create a new BiqModel instance and decode the encoded data into it
+    BiqModel decodedModel;
+    decodedModel.decodeToSelf(encoded);
+
+    // Now check that the decoded model has the same values as the original model
+    assert(originalModel == decodedModel);
+
+    assert(originalModel.mA_ == decodedModel.mA_);
+    assert(originalModel.mB_ == decodedModel.mB_);
+    // Continue for all the fields...
+
+    // If we got here, the test passed
+    std::cout << "Encode/decode test passed!\n";
+}
 
 AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
 {
@@ -512,7 +538,7 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
             {
                 i_As[pos] = it.i_;
                 j_As[pos] = it.j_;
-                dVal_Bs[pos] = it.dVal_;
+                dVal_As[pos] = it.dVal_;
                 ++pos;
             }
         }
@@ -609,21 +635,22 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     
     int pos, sizeTriple;
     int sizeAs, sizeBs;
-    int* i_As;
-    int* j_As;
-    int* i_Bs;
-    int* j_Bs;
+    int* i_As = nullptr;
+    int* j_As = nullptr;
+    int* i_Bs = nullptr;
+    int* j_Bs = nullptr;
     int* indexAs;
     int* indexBs;
-    int i_tmp, j_tmp;
-    double* dVal_As;
-    double* dVal_Bs;
+    //int i_tmp, j_tmp;
+    double* dVal_As = nullptr;
+    double* dVal_Bs = nullptr;
     double* Q_copy;
     double* a_copy;
     double* b_copy;
-    double dVal_tmp;
+    //double dVal_tmp;
     int NN;
-    size_t i;
+    //size_t i;
+    int i;
 
     // Read the data in the same order it was written
     encoded.readRep(max_problem_);
@@ -715,7 +742,7 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
 
     // For now this is init() with out the data set above
     // get the params needed for initilization 
-    const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
+    //const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
     const int nCuts = BiqPar_->entry(BiqParams::nCuts);
 
     ISUPPZ_ = new int[2*N_];
@@ -1043,13 +1070,14 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         
     }
 
+    dRetBound = (max_problem_) ? f_ : -f_;
+
     if(bRoot)
     {
-        std::printf("Bounding Complete:\n%d Function Evaluations\n", nFuncEvals);
+        std::printf("Bounding Complete:\nBound = %f\n%d Function Evaluations\n", dRetBound, nFuncEvals);
     }
     //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
     
-    dRetBound = (max_problem_) ? f_ : -f_;
     //exit(1);
     return dRetBound;
 }

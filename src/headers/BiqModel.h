@@ -150,6 +150,7 @@ public:
 
 
 
+
 private:
 
     void AddDiagCons();
@@ -210,6 +211,8 @@ private:
     void SetConSparseSize();
 
     bool pruneTest(double bound);
+
+    void testEncodeDecode();
 };
 
 #endif
