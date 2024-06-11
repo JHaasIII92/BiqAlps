@@ -73,6 +73,7 @@ BiqParams::setDefaultEntries() {
     setEntry(nCuts, 500);
     setEntry(nMaxBoundingIter, 100);
     setEntry(nMinBoundingIter, 12);
+    setEntry(nMinCuts, 50);
     setEntry(nMaxBFGSIter, 2000);
     setEntry(nMaxAlphaIter, 50);
     setEntry(nGoemanRuns, 10);

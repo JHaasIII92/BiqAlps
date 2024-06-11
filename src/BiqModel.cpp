@@ -74,7 +74,7 @@ void BiqModel::InitModel()
     vdFracSol_.resize(nVar_);
 
     testEncodeDecode();
-    exit(0);
+    
 }
 
 
@@ -463,25 +463,94 @@ BiqModel::~BiqModel()
 }
 
 void BiqModel::testEncodeDecode() {
-    // Create a BiqModel instance and set some values
-    BiqModel originalModel;
-    // Set values for originalModel...
-
     // Encode the original model
-    AlpsEncoded encoded;
-    originalModel.encode(encoded);
+    AlpsEncoded* encoded = new AlpsEncoded();
+    encode(encoded);
 
     // Create a new BiqModel instance and decode the encoded data into it
-    BiqModel decodedModel;
-    decodedModel.decodeToSelf(encoded);
+    BiqModel decodedModel = BiqModel(); // init empty model
+    decodedModel.decodeToSelf(*encoded);
 
     // Now check that the decoded model has the same values as the original model
-    assert(originalModel == decodedModel);
+    //assert(originalModel == decodedModel);
 
-    assert(originalModel.mA_ == decodedModel.mA_);
-    assert(originalModel.mB_ == decodedModel.mB_);
-    // Continue for all the fields...
+    assert(max_problem_ == decodedModel.max_problem_);
+    assert(N_ == decodedModel.N_);
+    assert(nVar_ == decodedModel.nVar_);
+    assert(mB_original_ == decodedModel.mB_original_);
+    assert(mA_ == decodedModel.mA_);
+    assert(mB_ == decodedModel.mB_);
 
+    bool bQmatch = true;
+    bool bAmatch = true;
+    bool bBmatch = true;
+
+    //for(int i = 0; i<N_*N_; ++i)
+    for(int i = 0; i<nVar_*nVar_; ++i)
+    {
+        if(Q_[i] != decodedModel.Q_[i])
+        {
+            bQmatch = false;
+        }
+    }
+    assert(bQmatch);
+
+    for(int i = 0; i<mA_; ++i)
+    {
+        if(a_[i] != decodedModel.a_[i])
+        {
+            bAmatch = false;
+        }
+    }
+    assert(bAmatch);
+
+    for(int i = 0; i<mB_; ++i)
+    {
+        if(b_[i] != decodedModel.b_[i])
+        {
+            bBmatch = false;
+        }
+    }
+    assert(bBmatch);
+    
+    // check sparse
+    BiqSparseTriple bstThis;
+    BiqSparseTriple bstDecoded;
+    assert(Bs_.size() == decodedModel.Bs_.size());
+    for(size_t i = 0; i < Bs_.size(); ++i)
+    {
+        assert(Bs_.at(i).size() == decodedModel.Bs_.at(i).size());
+        for(size_t j = 0; j < Bs_.at(i).size(); ++j)
+        {
+            bstThis = (Bs_.at(i)).at(j);
+            bstDecoded = (decodedModel.Bs_.at(i)).at(j);
+            assert(bstThis.dVal_ == bstDecoded.dVal_);
+            assert(bstThis.i_ == bstDecoded.i_);
+            assert(bstThis.j_ == bstDecoded.j_);
+    
+        }
+
+    }
+
+    assert(As_.size() == decodedModel.As_.size());
+    for(size_t i = 0; i < As_.size(); ++i)
+    {
+        assert(As_.at(i).size() == decodedModel.As_.at(i).size());
+        for(size_t j = 0; j < As_.at(i).size(); ++j)
+        {
+            bstThis = (As_.at(i)).at(j);
+            bstDecoded = (decodedModel.As_.at(i)).at(j);
+            assert(bstThis.dVal_ == bstDecoded.dVal_);
+            assert(bstThis.i_ == bstDecoded.i_);
+            assert(bstThis.j_ == bstDecoded.j_);
+    
+        }
+
+    }
+
+    const int nCutsThis = BiqPar_->entry(BiqParams::nCuts);
+    const int nCutsDecoded = decodedModel.BiqPar_->entry(BiqParams::nCuts);
+    assert(nCutsThis == nCutsDecoded);
     // If we got here, the test passed
     std::cout << "Encode/decode test passed!\n";
 }
@@ -502,7 +571,8 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     // copy data from Sparse std:vectors
     int pos;
     int sizeAs, sizeBs;
-    int NN = N_*N_;
+    //int NN = N_*N_;
+    int NN = nVar_*nVar_;
     int* i_As;
     int* j_As;
     int* i_Bs;
@@ -660,7 +730,8 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     encoded.readRep(mA_);
     encoded.readRep(mB_);
 
-    NN = N_*N_;
+    //NN = N_*N_;
+    NN = nVar_*nVar_;
     Q_ = new double[NN];
     a_ = new double[mA_];
     b_ = new double[mB_];
@@ -777,7 +848,10 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     wa_ = new double[wa_length];
     iwa_ = new int[iwa_length];
 
-    
+    /* NK: Should we add diagonal and product constraints here? */
+    //AddDiagCons();
+    //if(bProdCons) AddProdCons();
+
     AllocSubCons();
     SetConSparseSize();
     // Set cut data 
@@ -961,19 +1035,61 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     bool bStopSDPBound = false;
 
     // param
-    const int nHeurRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
-    const int maxNAiter = BiqPar_->entry(BiqParams::nMaxAlphaIter);
-    const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
-    const int MinNiter = BiqPar_->entry(BiqParams::nMinBoundingIter);
-    const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
-    const int nitermax = BiqPar_->entry(BiqParams::nMaxBFGSIter);
     const double dMinAlpha = BiqPar_->entry(BiqParams::dMinAlpha);
+    const double dMinTol = BiqPar_->entry(BiqParams::dMinTol);
     const double dScaleAlpha = BiqPar_->entry(BiqParams::dScaleAlpha);
     const double dScaleTol = BiqPar_->entry(BiqParams::dScaleTol);
-    const double dMinTol = BiqPar_->entry(BiqParams::dMinTol);
+
+    const int MinNiter = BiqPar_->entry(BiqParams::nMinBoundingIter);
+    const int maxNAiter = BiqPar_->entry(BiqParams::nMaxAlphaIter);
+    const int nHeurRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
+    const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
+    const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
+    const int nitermax = BiqPar_->entry(BiqParams::nMaxBFGSIter);
+
     double dAlpha = BiqPar_->entry(BiqParams::dInitAlpha);
     double dTol = BiqPar_->entry(BiqParams::dInitTol);
     // Biq.par
+
+    std::printf("Bounding Started\n");
+
+    std::printf("dMinAlpha = %e\n", dMinAlpha);
+    std::printf("dMinTol = %e\n", dMinTol);
+    std::printf("dScaleAlpha = %f\n", dScaleAlpha);
+    std::printf("dScaleTol = %f\n", dScaleTol);
+
+    std::printf("MinNiter = %d\n", MinNiter);
+    std::printf("maxNAiter = %d\n", maxNAiter);
+    std::printf("nHeurRuns = %d\n", nHeurRuns);
+    std::printf("nMaxIter = %d\n", nMaxIter);
+    std::printf("nMinAdded = %d\n", nMinAdded);
+    std::printf("nitermax = %d\n", nitermax);
+
+    std::printf("dAlpha = %f\n", dAlpha);
+    std::printf("dTol = %f\n", dTol);
+
+    std::printf("N_ = %d\n", N_);
+    std::printf("nVar_ = %d\n", nVar_);
+    std::printf("mA_ = %d\n", mA_);
+    std::printf("mB_ = %d\n", mB_);
+    std::printf("nIneq_ = %d\n", nIneq_);
+    std::printf("max_problem_ = %d\n", max_problem_);
+    //print_symmetric_matrix(Q_, nVar_);
+
+    std::printf("nVar_sub_ = %d\n", nVar_sub_);
+    std::printf("mB_sub_ = %d\n", mB_sub_);
+    std::printf("mA_sub_ = %d\n", mA_sub_);
+    //print_symmetric_matrix(Q_sub_, nVar_sub_);
+
+    // print vbiqVarStatus
+    for(int i=0; i < nVar_; ++i)
+    {
+        if(vbiqVarStatus.at(i) != BiqVarStatus::BiqVarFree)
+        {
+            std::printf("vbiqVarStatus[%d] = %d\n", i, vbiqVarStatus.at(i));
+        }
+    }
+
 
     // 
     if(nVar_sub_ == 0)
@@ -1090,8 +1206,8 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
 
     if(iter == 1)
     {
-        std::printf("======================================================================================\n");
-        std::printf("%4s  %6s  %5s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %4s  %4s  %4s\n", 
+        std::printf("=========================================================================================\n");
+        std::printf("%4s  %6s  %8s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %4s  %4s  %4s\n", 
                     "Iter", 
                     "Time", 
                     //"gap", 
@@ -1106,10 +1222,10 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
                     "NCut", 
                     "NSub", 
                     "NAdd");
-        std::printf("======================================================================================\n");
+        std::printf("=========================================================================================\n");
     }
 
-    std::printf("%4d  %6.1f  %5.4f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %20.16e  %6.0e  %4d  -%-3d  +%-3d\n", 
+    std::printf("%4d  %6.1f  %8.4f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %5.0e  %6.0e  %4d  -%-3d  +%-3d\n", 
                 iter, 
                 0.0, /* TODO time*/
                 //dGap, 
