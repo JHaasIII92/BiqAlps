@@ -114,11 +114,11 @@ $(EXE): $(ALLOBJS)
 	$(CXX) $(CXXLINKFLAGS) $(CXXFLAGS) -o $@ $$bla  $(LIBS) $(ADDLIBS) 
 
 $(OBJDIR)%.o: %.cpp
-	$(info Building $@ from $<)
+#$(info Building $@ from $<)
 	$(CXX) $(CXXFLAGS) $(INCL) -c $< -o $@
 
 $(OBJDIR)%.o: %.f
-	$(info Building $@ from $<)
+#$(info Building $@ from $<)
 	$(FC) $(FFLAGS) -c $< -o $@
 
 clean:

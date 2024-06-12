@@ -10,7 +10,7 @@ dQuality_(0.0)
 {
     int nVar = model_->getNVar();
     varStatus_.resize(nVar, BiqVarFree);
-    std::printf("BiqNodeDesc::BiqNodeDesc nVar: %d\n",nVar );
+    //std::printf("BiqNodeDesc::BiqNodeDesc nVar: %d\n",nVar );
 }
 
 BiqNodeDesc::BiqNodeDesc(BiqModel * model, std::vector<BiqVarStatus> & st) :
@@ -19,7 +19,7 @@ model_(model),
 varStatus_(st),
 dQuality_(0.0)
 {
-  std::printf("BiqNodeDesc::BiqNodeDesc    size status: %ld\n", varStatus_.size());
+  //std::printf("BiqNodeDesc::BiqNodeDesc    size status: %ld\n", varStatus_.size());
 }
 
 BiqNodeDesc::~BiqNodeDesc() 
@@ -44,12 +44,12 @@ void BiqNodeDesc::bound(int & iBound, std::vector<int> solution)
 /// Pack this node description into the given #AlpsEncoded object.
 AlpsReturnStatus BiqNodeDesc::encode(AlpsEncoded * encoded) const 
 {
-  std::printf("BiqNodeDesc::encode\n");
+  //std::printf("BiqNodeDesc::encode\n");
   int *ipStatus;
   int sizeStatus;
   
   sizeStatus = varStatus_.size();
-  std::printf("encode stat size: %d\n", sizeStatus);
+  //std::printf("encode stat size: %d\n", sizeStatus);
   if(sizeStatus > 0)
   {
     // give ipstatus the memory needed
@@ -76,7 +76,7 @@ AlpsReturnStatus BiqNodeDesc::encode(AlpsEncoded * encoded) const
 /// Unpack fields from the given #AlpsEncoded object.
 AlpsReturnStatus BiqNodeDesc::decodeToSelf(AlpsEncoded & encoded) 
 {
-  std::printf("BiqNodeDesc::decodeToSelf\n");
+  //std::printf("BiqNodeDesc::decodeToSelf\n");
   int *ipStatus = NULL;
   int sizeStatus;
 
@@ -84,9 +84,9 @@ AlpsReturnStatus BiqNodeDesc::decodeToSelf(AlpsEncoded & encoded)
   encoded.readRep(iBranchedOn_);
 
   encoded.readRep(sizeStatus);
-  std::printf("decodeToSelf size status: %d\n",sizeStatus);
+  //std::printf("decodeToSelf size status: %d\n",sizeStatus);
   encoded.readRep(ipStatus,sizeStatus);
-  std::printf("encoded.readRep(ipStatus,sizeStatus);... \n");
+  //std::printf("encoded.readRep(ipStatus,sizeStatus);... \n");
   // build the vector by looping over ipStatus
   varStatus_.resize(sizeStatus);
   for(int i = 0; i < sizeStatus; ++i)

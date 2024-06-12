@@ -27,15 +27,15 @@ void BiqModel::InitModel()
     mA_ = As_.size();
 
     mB_original_ = Bs_.size();
-    mB_ = Bs_.size() + N_ ;
-    if(bProdCons) mB_ += iEqualityIsLinear_.size()*nVar_;
+    int numEqualityConstraints = mB_original_ + N_;
+    if(bProdCons) numEqualityConstraints += iEqualityIsLinear_.size()*nVar_;
 
     a_sub_ = new double[mA_];
-    b_sub_ = new double[mB_];
+    b_sub_ = new double[numEqualityConstraints];
     Q_sub_ = new double[N_*N_];
     vOffset_.resize(nVar_, 0);
-    b_   = new double[mB_];
-    std::copy(b_original_, b_original_ + Bs_.size(), b_);
+    b_   = new double[numEqualityConstraints];
+    std::copy(b_original_, b_original_ + mB_original_, b_);
     /* L-BFGS-B Data */
     int nMax = mB_ + mA_ + MaxNineqAdded;
     int wa_length = (2 * mmax + 5) * nMax + 11 * mmax * mmax + 8 * mmax;
@@ -73,7 +73,7 @@ void BiqModel::InitModel()
 
     vdFracSol_.resize(nVar_);
 
-    testEncodeDecode();
+    //testEncodeDecode();
     
 }
 
@@ -81,11 +81,30 @@ void BiqModel::InitModel()
 /** Read in Alps and Biq parameters. */
 void BiqModel::readParameters(const int argnum, const char * const * arglist) 
 {
-        printf("BiqModel::readParameters\n");
         std::cout << "Reading in ALPS parameters ..." << std::endl;
         AlpsPar_->readFromArglist(argnum, arglist);
+
         std::cout << "Reading in Biq parameters ..." << std::endl;
         BiqPar_->readFromArglist(argnum, arglist);
+
+        std::printf("> bAddProductConstraints = %d\n", BiqPar_->entry(BiqParams::bAddProductConstraints));
+        std::printf("> bAddCuts = %d\n", BiqPar_->entry(BiqParams::bAddCuts));
+        std::printf("> bScale = %d\n", BiqPar_->entry(BiqParams::bScale));
+
+        std::printf("> nCuts = %d\n", BiqPar_->entry(BiqParams::nCuts));
+        std::printf("> nMinCuts = %d\n", BiqPar_->entry(BiqParams::nMinCuts));
+        std::printf("> nMaxBoundingIter = %d\n", BiqPar_->entry(BiqParams::nMaxBoundingIter));
+        std::printf("> nMaxBFGSIter = %d\n", BiqPar_->entry(BiqParams::nMaxBFGSIter));
+        std::printf("> nMinBoundingIter = %d\n", BiqPar_->entry(BiqParams::nMinBoundingIter));
+        std::printf("> nGoemanRuns = %d\n", BiqPar_->entry(BiqParams::nGoemanRuns));
+
+        std::printf("> dGapCuts = %e\n", BiqPar_->entry(BiqParams::dGapCuts));
+        std::printf("> dInitAlpha = %e\n", BiqPar_->entry(BiqParams::dInitAlpha));
+        std::printf("> dInitTol = %f\n", BiqPar_->entry(BiqParams::dInitTol));
+        std::printf("> dMinAlpha = %e\n", BiqPar_->entry(BiqParams::dMinAlpha));
+        std::printf("> dMinTol = %e\n", BiqPar_->entry(BiqParams::dMinTol));
+        std::printf("> dScaleAlpha = %f\n", BiqPar_->entry(BiqParams::dScaleAlpha));
+        std::printf("> dScaleTol = %f\n", BiqPar_->entry(BiqParams::dScaleTol));
 }
 
 void BiqModel::readInstance(const char* strDataFile)
@@ -316,9 +335,9 @@ void BiqModel::readInstance(const char* strDataFile)
                 }
                 if(bLinear)
                 {
-                    std::printf("pre push back\n");
+                    //std::printf("pre push back\n");
                     iInequalityIsLinear_.push_back(pos_b);
-                    std::printf("post push back\n");
+                    //std::printf("post push back\n");
                 }
                 
                 ++pos_a;
@@ -570,17 +589,34 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     //------------------------------------------------------
     // copy data from Sparse std:vectors
     int pos;
-    int sizeAs, sizeBs;
+    int sizeQs, sizeAs, sizeBs;
     //int NN = N_*N_;
     int NN = nVar_*nVar_;
+    int* i_Qs;
+    int* j_Qs;
     int* i_As;
     int* j_As;
     int* i_Bs;
     int *j_Bs;
     int* indexAs;
     int* indexBs;
+    double* dVal_Qs;
     double* dVal_As;
     double* dVal_Bs;
+
+
+    sizeQs = Qs_.size();
+    i_Qs = new int[sizeQs];
+    j_Qs = new int[sizeQs];
+    dVal_Qs = new double[sizeQs];
+    pos = 0;
+    for(auto &it: Qs_)
+    {
+        i_Qs[pos] = it.i_;
+        j_Qs[pos] = it.j_;
+        dVal_Qs[pos] = it.dVal_;
+        ++pos;
+    }
 
     // need to figure out the size of As_
     sizeAs = 0;
@@ -668,13 +704,18 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     encoded->writeRep(mB_original_); // needed for computing objective value
     encoded->writeRep(mA_);
     encoded->writeRep(mB_);
-    
+
     // write the arrays
     encoded->writeRep(Q_,NN);
     encoded->writeRep(a_,mA_);
     encoded->writeRep(b_,mB_);
 
     // finally the data structures like std::vectors
+    encoded->writeRep(sizeQs);
+    encoded->writeRep(i_Qs,sizeQs);
+    encoded->writeRep(j_Qs,sizeQs);
+    encoded->writeRep(dVal_Qs,sizeQs);
+
     encoded->writeRep(sizeAs);
     encoded->writeRep(indexAs,mA_);
     encoded->writeRep(i_As,sizeAs);
@@ -704,19 +745,22 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     //------------------------------------------------------
     
     int pos, sizeTriple;
-    int sizeAs, sizeBs;
+    int sizeQs, sizeAs, sizeBs;
+    int* i_Qs = nullptr;
+    int* j_Qs = nullptr;
     int* i_As = nullptr;
     int* j_As = nullptr;
     int* i_Bs = nullptr;
     int* j_Bs = nullptr;
-    int* indexAs;
-    int* indexBs;
+    int* indexAs = nullptr;
+    int* indexBs = nullptr;
     //int i_tmp, j_tmp;
+    double* dVal_Qs = nullptr;
     double* dVal_As = nullptr;
     double* dVal_Bs = nullptr;
-    double* Q_copy;
-    double* a_copy;
-    double* b_copy;
+    double* Q_copy = nullptr;
+    double* a_copy = nullptr;
+    double* b_copy = nullptr;
     //double dVal_tmp;
     int NN;
     //size_t i;
@@ -766,6 +810,11 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
         }
     }
 
+    encoded.readRep(sizeQs);
+    encoded.readRep(i_Qs,sizeQs);
+    encoded.readRep(j_Qs,sizeQs);
+    encoded.readRep(dVal_Qs,sizeQs);
+
     encoded.readRep(sizeAs);
     encoded.readRep(indexAs,mA_);
     encoded.readRep(i_As,sizeAs);
@@ -777,6 +826,16 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     encoded.readRep(i_Bs,sizeBs);
     encoded.readRep(j_Bs,sizeBs);
     encoded.readRep(dVal_Bs,sizeBs);
+
+    Qs_.resize(sizeQs);
+    pos = 0;
+    for(auto &it: Qs_)
+    {
+        it.i_ = i_Qs[pos];
+        it.j_ = j_Qs[pos];
+        it.dVal_ = dVal_Qs[pos];
+        ++pos;
+    }
 
     // now that data is read build As_ and Bs_
     As_.resize(mA_);
@@ -883,6 +942,7 @@ void BiqModel::AddDiagCons()
 {
     // resize ?
     // then loop 
+    std::printf("---------------------- Adding Diag Cons to Bs_\n");
 
     // size of Bs_ pre diag cons use to shift entires of b_
     int nCons = Bs_.size();
@@ -899,6 +959,8 @@ void BiqModel::AddDiagCons()
         b_[i + nCons] = 1.0;
         //PrintSparseMatrix(bstTemp);
     }
+
+    mB_ = Bs_.size();
 }
 
 /// @brief 
@@ -911,8 +973,8 @@ void BiqModel::AddProdCons()
     int posProdCon = Bs_.size();
     double dTemp;
     double dLinear = 0;
-    // lopp over the the 
-    //std::printf("Adding Prod Cons\n");
+
+    std::printf("---------------------- Adding Prod Cons to Bs_\n");
     //std::printf("mB_ = %d \t Size(Bs_) = %d \t Number of Diag Cons = %d \t Equality Cons = %d\n", mB_, Bs_.size(), N_, iEqualityIsLinear_.size());
 
     // k = positon of equality con
@@ -975,8 +1037,7 @@ void BiqModel::AddProdCons()
             posProdCon++;
         }
     }
-    //std::printf("mB_ = %d \t Size(Bs_) = %d\n", mB_, Bs_.size());
-    //exit(1);
+    mB_ = Bs_.size();
 }
 /// @brief use this method
 /// to set the size of each sub
@@ -1003,7 +1064,9 @@ void BiqModel::SetConSparseSize()
 void BiqModel::AllocSubCons()
 {
     Bs_sub_.resize(mB_);
+    mB_sub_ = Bs_sub_.size();
     As_sub_.resize(mA_);
+    mA_sub_ = As_sub_.size();
 }
 
 /// @brief 
@@ -1035,6 +1098,8 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     bool bStopSDPBound = false;
 
     // param
+    const bool bAddCuts = BiqPar_->entry(BiqParams::bAddCuts);
+
     const double dMinAlpha = BiqPar_->entry(BiqParams::dMinAlpha);
     const double dMinTol = BiqPar_->entry(BiqParams::dMinTol);
     const double dScaleAlpha = BiqPar_->entry(BiqParams::dScaleAlpha);
@@ -1051,35 +1116,9 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     double dTol = BiqPar_->entry(BiqParams::dInitTol);
     // Biq.par
 
-    std::printf("Bounding Started\n");
-
-    std::printf("dMinAlpha = %e\n", dMinAlpha);
-    std::printf("dMinTol = %e\n", dMinTol);
-    std::printf("dScaleAlpha = %f\n", dScaleAlpha);
-    std::printf("dScaleTol = %f\n", dScaleTol);
-
-    std::printf("MinNiter = %d\n", MinNiter);
-    std::printf("maxNAiter = %d\n", maxNAiter);
-    std::printf("nHeurRuns = %d\n", nHeurRuns);
-    std::printf("nMaxIter = %d\n", nMaxIter);
-    std::printf("nMinAdded = %d\n", nMinAdded);
-    std::printf("nitermax = %d\n", nitermax);
-
-    std::printf("dAlpha = %f\n", dAlpha);
-    std::printf("dTol = %f\n", dTol);
-
-    std::printf("N_ = %d\n", N_);
-    std::printf("nVar_ = %d\n", nVar_);
-    std::printf("mA_ = %d\n", mA_);
-    std::printf("mB_ = %d\n", mB_);
-    std::printf("nIneq_ = %d\n", nIneq_);
-    std::printf("max_problem_ = %d\n", max_problem_);
-    //print_symmetric_matrix(Q_, nVar_);
-
-    std::printf("nVar_sub_ = %d\n", nVar_sub_);
-    std::printf("mB_sub_ = %d\n", mB_sub_);
-    std::printf("mA_sub_ = %d\n", mA_sub_);
-    //print_symmetric_matrix(Q_sub_, nVar_sub_);
+    std::printf("\n");
+    std::printf("SDPbound started\n");
+    std::printf("    bRoot = %d\n", bRoot);
 
     // print vbiqVarStatus
     for(int i=0; i < nVar_; ++i)
@@ -1141,7 +1180,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
                       (dGap > 2.0);
         }
 
-        if(!prune && !bGiveUp)
+        if(!prune && !bGiveUp && bAddCuts)
         {
             dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
         }
@@ -1190,11 +1229,10 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
     if(bRoot)
     {
-        std::printf("Bounding Complete:\nBound = %f\n%d Function Evaluations\n", dRetBound, nFuncEvals);
+        std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
     }
     //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
     
-    //exit(1);
     return dRetBound;
 }
 
@@ -1316,15 +1354,15 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
 
             // Compute rhe Infinity-norm of gradE = g[g[0:mB_-1]
             gradEnorm_ = 0.0;
-            for(i = 0; i < mB_; ++i)
+            for(i = 0; i < mB_sub; ++i)
             {
                 gradEnorm_ = (gradEnorm_ < fabs(g_[i])) ? fabs(g_[i]) : gradEnorm_;
             }
             gradEnorm_ /= scaleEq;
 
-            // Compute Infinity-norm of gradI = min(g[mB_:nLBFGSB_Vars-1], 0.0)
+            // Compute Infinity-norm of gradI = min(g[mB_sub:nLBFGSB_Vars-1], 0.0)
             gradInorm_ = 0.0;
-            for(i = mB_; i < len_y; ++i)
+            for(i = mB_sub; i < len_y; ++i)
             {
                 dMinTemp = (g_[i] > 0.0) ? 0.0 : g_[i];
                 gradInorm_ = (gradInorm_ < fabs(dMinTemp)) ? fabs(dMinTemp) : gradInorm_;
@@ -1402,7 +1440,6 @@ void BiqModel::sim(double alpha)
     f_ += alpha * (0.5 * static_cast<double>(N2));
 
     //print_vector(g_,mA_+mB_+nIneq_);
-    //exit(0);
     //print_symmetric_matrix(X_,N);
 }
  
@@ -1499,7 +1536,6 @@ void BiqModel::ProjSDP()
 
     /*
     print_symmetric_matrix(X_, N_);
-    exit(1);
     */
 }
 
@@ -1585,14 +1621,9 @@ void BiqModel::A(int mode, double alpha)
                 X_[it->j_ + it->k_ * N] += dTemp;
             } break;
             }
-            /*
-            std::printf("dTemp: %f \t y = %f cut_y = %f\n",
-                dTemp, y_[mB_ + mA_ + ineqCon], it->y_);
-            */
             ineqCon++;
         }
 
-        //exit(1);
     }
     else
     {
@@ -1652,20 +1683,9 @@ void BiqModel::A(int mode, double alpha)
             }
 
             g_[mB_sub + mA_sub + ineqCon] = (dTemp * dAlphaInv + 1.0) * scaleIneq;
-            /*
-            std::printf("%d %d %d %d \t %f \t %f \t %f \t %f\n", 
-            it->type_, it->i_, it->j_, it->k_, 
-            dTemp, X_[it->i_ + it->j_ * N], X_[it->i_ + it->k_ * N], X_[it->j_ + it->k_ * N]);
-            */
-            /*
-            printf("type: %d \t g[%d] = (%f * %f + 1.0) * %f\n", 
-                    it->type_, mB_ + mA_ + ineqCon, dTemp, dAlphaInv, scaleIneq);
-            */
             
             ineqCon++;
         }
-        //std::printf("needed: %d\ts have: %d\n", nIneq_, ineqCon);
-        //if(nIneq_>0) exit(0);
     }
 }
 
