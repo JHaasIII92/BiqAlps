@@ -18,7 +18,10 @@ Biq_nMinCuts 50 # [default: 50]
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
 ########
 #Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n40_d025_10_k10_1_noProdCons.bc
+#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n80_d025_k20_1_noProdCons.bc
 Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n100_d025_k25_1_noProdCons.bc
+#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/PB1_n120_d050_k30_noProdCons.bc
+#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/PB1_n140_d050_k35_noProdCons.bc
 #Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/PB1_n160_d050_k40_noProdCons.bc
 
 Alps_processNum 8

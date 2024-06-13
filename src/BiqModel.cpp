@@ -73,7 +73,8 @@ void BiqModel::InitModel()
 
     vdFracSol_.resize(nVar_);
 
-    //testEncodeDecode();
+    testEncodeDecode();
+    //exit(1);
     
 }
 
@@ -504,14 +505,14 @@ void BiqModel::testEncodeDecode() {
     bool bAmatch = true;
     bool bBmatch = true;
 
-    //for(int i = 0; i<N_*N_; ++i)
-    for(int i = 0; i<nVar_*nVar_; ++i)
+    for(int i = 0; i<N_*N_; ++i)
     {
         if(Q_[i] != decodedModel.Q_[i])
         {
             bQmatch = false;
         }
     }
+    std::printf("bQmatch = %d\n", bQmatch);
     assert(bQmatch);
 
     for(int i = 0; i<mA_; ++i)
@@ -521,6 +522,7 @@ void BiqModel::testEncodeDecode() {
             bAmatch = false;
         }
     }
+    std::printf("bAmatch = %d\n", bAmatch);
     assert(bAmatch);
 
     for(int i = 0; i<mB_; ++i)
@@ -530,6 +532,7 @@ void BiqModel::testEncodeDecode() {
             bBmatch = false;
         }
     }
+    std::printf("bBmatch = %d\n", bBmatch);
     assert(bBmatch);
     
     // check sparse
@@ -569,6 +572,8 @@ void BiqModel::testEncodeDecode() {
 
     const int nCutsThis = BiqPar_->entry(BiqParams::nCuts);
     const int nCutsDecoded = decodedModel.BiqPar_->entry(BiqParams::nCuts);
+    std::printf("nCutsThis = %d\n", nCutsThis);
+    std::printf("nCutsDecoded = %d\n", nCutsDecoded);
     assert(nCutsThis == nCutsDecoded);
     // If we got here, the test passed
     std::cout << "Encode/decode test passed!\n";
@@ -590,8 +595,7 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     // copy data from Sparse std:vectors
     int pos;
     int sizeQs, sizeAs, sizeBs;
-    //int NN = N_*N_;
-    int NN = nVar_*nVar_;
+    int NN = N_*N_;
     int* i_Qs;
     int* j_Qs;
     int* i_As;
@@ -774,8 +778,7 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     encoded.readRep(mA_);
     encoded.readRep(mB_);
 
-    //NN = N_*N_;
-    NN = nVar_*nVar_;
+    NN = N_*N_;
     Q_ = new double[NN];
     a_ = new double[mA_];
     b_ = new double[mB_];
@@ -1097,6 +1100,8 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     bool bGiveUp = false;
     bool bStopSDPBound = false;
 
+    const bool bPrintTable = false;
+
     // param
     const bool bAddCuts = BiqPar_->entry(BiqParams::bAddCuts);
 
@@ -1194,7 +1199,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
     
-        if(bRoot)
+        if(bPrintTable)
         {
             PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
         }
@@ -1227,7 +1232,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
     dRetBound = (max_problem_) ? f_ : -f_;
 
-    if(bRoot)
+    if(bPrintTable)
     {
         std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
     }

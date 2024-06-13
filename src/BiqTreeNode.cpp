@@ -61,11 +61,11 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     //foo.at(38) = BiqVarFixedToZero;
     const std::vector<BiqVarStatus> biqVarStatus = desc->getVarStati();
  
-    if(isRoot)
-    {
+    //if(isRoot)
+    //{
         // try the brute force heuristic 
         model->primalHeuristic();
-    }
+    //}
 
     // get the best solution so far (for parallel, it is the incumbent)
     int bestVal = static_cast<int>(broker()->getIncumbentValue());
