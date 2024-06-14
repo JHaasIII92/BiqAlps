@@ -59,6 +59,7 @@ BiqParams::createKeywordList() {
 
 void
 BiqParams::setDefaultEntries() {
+    std::printf("BiqParams::setDefaultEntries()\n");
     //-------------------------------------------------------------------------
     // CharPar
 

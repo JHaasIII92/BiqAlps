@@ -73,8 +73,7 @@ void BiqModel::InitModel()
 
     vdFracSol_.resize(nVar_);
 
-    testEncodeDecode();
-    //exit(1);
+    //testEncodeDecode();
     
 }
 
@@ -88,24 +87,7 @@ void BiqModel::readParameters(const int argnum, const char * const * arglist)
         std::cout << "Reading in Biq parameters ..." << std::endl;
         BiqPar_->readFromArglist(argnum, arglist);
 
-        std::printf("> bAddProductConstraints = %d\n", BiqPar_->entry(BiqParams::bAddProductConstraints));
-        std::printf("> bAddCuts = %d\n", BiqPar_->entry(BiqParams::bAddCuts));
-        std::printf("> bScale = %d\n", BiqPar_->entry(BiqParams::bScale));
-
-        std::printf("> nCuts = %d\n", BiqPar_->entry(BiqParams::nCuts));
-        std::printf("> nMinCuts = %d\n", BiqPar_->entry(BiqParams::nMinCuts));
-        std::printf("> nMaxBoundingIter = %d\n", BiqPar_->entry(BiqParams::nMaxBoundingIter));
-        std::printf("> nMaxBFGSIter = %d\n", BiqPar_->entry(BiqParams::nMaxBFGSIter));
-        std::printf("> nMinBoundingIter = %d\n", BiqPar_->entry(BiqParams::nMinBoundingIter));
-        std::printf("> nGoemanRuns = %d\n", BiqPar_->entry(BiqParams::nGoemanRuns));
-
-        std::printf("> dGapCuts = %e\n", BiqPar_->entry(BiqParams::dGapCuts));
-        std::printf("> dInitAlpha = %e\n", BiqPar_->entry(BiqParams::dInitAlpha));
-        std::printf("> dInitTol = %f\n", BiqPar_->entry(BiqParams::dInitTol));
-        std::printf("> dMinAlpha = %e\n", BiqPar_->entry(BiqParams::dMinAlpha));
-        std::printf("> dMinTol = %e\n", BiqPar_->entry(BiqParams::dMinTol));
-        std::printf("> dScaleAlpha = %f\n", BiqPar_->entry(BiqParams::dScaleAlpha));
-        std::printf("> dScaleTol = %f\n", BiqPar_->entry(BiqParams::dScaleTol));
+        BiqPar_->print();
 }
 
 void BiqModel::readInstance(const char* strDataFile)
@@ -433,6 +415,7 @@ void BiqModel::readInstance(const char* strDataFile)
 
 void BiqModel::InitEmptyModel()
 {
+    std::printf("InitEmptyModel\n");
     BiqPar_ = new BiqParams;
     ISUPPZ_ = nullptr;
     X_ = nullptr;
@@ -1100,9 +1083,11 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     bool bGiveUp = false;
     bool bStopSDPBound = false;
 
-    const bool bPrintTable = false;
+    const bool bPrintTable = true;
 
     // param
+    if (bRoot) BiqPar_->print();
+
     const bool bAddCuts = BiqPar_->entry(BiqParams::bAddCuts);
 
     const double dMinAlpha = BiqPar_->entry(BiqParams::dMinAlpha);
@@ -1115,17 +1100,16 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     const int nHeurRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
     const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
     const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
-    const int nitermax = BiqPar_->entry(BiqParams::nMaxBFGSIter);
+    const int nMaxBFGSIter = BiqPar_->entry(BiqParams::nMaxBFGSIter);
 
     double dAlpha = BiqPar_->entry(BiqParams::dInitAlpha);
     double dTol = BiqPar_->entry(BiqParams::dInitTol);
     // Biq.par
 
+    /*
     std::printf("\n");
     std::printf("SDPbound started\n");
     std::printf("    bRoot = %d\n", bRoot);
-
-    // print vbiqVarStatus
     for(int i=0; i < nVar_; ++i)
     {
         if(vbiqVarStatus.at(i) != BiqVarStatus::BiqVarFree)
@@ -1133,6 +1117,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
             std::printf("vbiqVarStatus[%d] = %d\n", i, vbiqVarStatus.at(i));
         }
     }
+    */
 
 
     // 
@@ -1199,20 +1184,20 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
     
-        if(bPrintTable)
+        if(bPrintTable && bRoot)
         {
             PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
         }
         
         // check if we are done
-        if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nitermax)
+        if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nMaxBFGSIter)
         {
             /*
             if (prune) std::printf("Prune\n");
             if (bGiveUp) std::printf("Give Up\n");
             if (bStopSDPBound) std::printf("Stop SDP Bound\n");
             if (iStatus == -1) std::printf("Status -1\n");
-            if (nbit >= nitermax) std::printf("nbit >= nitermax\n");
+            if (nbit >= nMaxBFGSIter) std::printf("nbit >= nMaxBFGSIter\n");
             */
             break;
         }
@@ -1232,7 +1217,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
     dRetBound = (max_problem_) ? f_ : -f_;
 
-    if(bPrintTable)
+    if(bPrintTable && bRoot)
     {
         std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
     }
@@ -1268,7 +1253,7 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
         std::printf("=========================================================================================\n");
     }
 
-    std::printf("%4d  %6.1f  %8.4f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %5.0e  %6.0e  %4d  -%-3d  +%-3d\n", 
+    std::printf("%4d  %6.1f  %8.2f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %5.0e  %6.0e  %4d  -%-3d  +%-3d\n", 
                 iter, 
                 0.0, /* TODO time*/
                 //dGap, 
@@ -1288,6 +1273,8 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
 }
 int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
 {
+    const int nMaxBFGSIter = BiqPar_->entry(BiqParams::nMaxBFGSIter);
+
     int retStatus = 1;
     int mem = mmax;
     int i;
@@ -1380,7 +1367,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
             //std::printf("Grad E: %20.16f \t Grad I: %20.16f\n",gradEnorm_, gradInorm_);
             if(bPrune
                || (gradEnorm_ < dTol && gradInorm_ < dTol)
-               || nbit >= MAXITER)
+               || nbit >= nMaxBFGSIter)
                {
                 /*
                 std::printf("stopping ... prune: %d \t E norm %f tol %f \t E norm %f tol %f \tbits %d \n",

@@ -1,0 +1,151 @@
+#!/bin/bash
+#
+# An example of a script to run the "cudaMPI" program, 
+# via the PBSpro (portable batch system) machinery.
+# Files of such type are usually referred to as "job description files"
+# or "job submission" files or simply "job files". 
+#
+# The file structure 
+#
+#  - the very first line defines the shell interpreter to be used
+#    "#!/bin/bash"  in this case, do not edit
+#
+#  - all lines starting with # are comments except those 
+#    started with '#PBS' and  "#!" 
+#
+#  - lines starting with '#PBS' are the batch system directives
+#    (google for "PBS directives" for examples and tutorials)
+#
+#  - lines starting with '#--#PBS' are commented PBS directives 
+#
+#  - all other lines will be interpreted as commands, exactly
+#    like in the terminal session
+#
+# Usage:
+# On the metis login node run
+#   mkdir  ~/examples
+#   rsync -av /home/examples/examples-metis/cuda-mpi-pbs ~/examples/
+#   cd  ~/examples/cuda-mpi-pbs
+#   ls
+#   cat README # the detailed description of this example
+#   qsub cudaMPI.pbs
+#
+#
+# The system will respond with a line similar to "12345.cm"
+# where "12345" is the jobID number assigned to this job by the PBS system.
+# and will send you an e-mail when the job is completed
+#
+# At this time:
+#   1) the 'qsub' command will put the script into the PBS queue;
+#   2) the PBS scheduler will find the required resources
+#   3) this script will be executed on a set of compute nodes
+#  
+# The job status (queued (Q), running (R), or completed (C) ) 
+# can be checked with commands , replace jobID with the actual number 
+#   qstat jobID  
+# or with more details
+#   qstat -f jobID 
+#
+#=============  PBS directives  ==============##
+#-- PBS Directives, to be customized by a user
+#   more at https://latisresearch.umn.edu/creating-a-PBS-script
+#
+#The name this job 
+#PBS -N BiqAlps_sonetgr17
+#
+#Merge standard output and standard error into the default output file
+#(in this examples cudaMPI.o12345)
+#PBS -j oe
+#
+#At metis, a CPU core and a GPU card are elementary units of computational resources. 
+#The cluster has 32 nodes, each with 128 CPU cores, one GPU card, 256 GB (28 nodes) or 1024 GB (4 nodes). 
+#The resource requests are organized in "chunks." The smallest chunk includes one CPU and 2 GB of memory.
+#The largest chunk includes 128 CPUs and 1024 GB of memory. A chunk can also request a GPU card 
+#and specify the number of MPI tasks, usually equal to the number of CPU cores in a chunk. 
+#A single chunk usually serves one MPI task or one application instance. 
+# Small CPU-only chunks can occupy the same node - for example, up to 128 1-CPU chunks can run on a single node.
+#To request a specific number of chunks,CPUs,MPI processes and GPUs                               
+#use the command          "#PBS -l select=Nchunks:ncpus=Ncpus:mpiprocs=NPmpi:ngpus=Ngpus:mem=Xgb"
+#For CPU-only jobs use the command "#PBS -l select=Nchunks:ncpus=Ncpus:mpiprocs=NPmpi:mem=Xgb"
+#
+#Note - on Metis   
+#              Nchunks<=32, for GPU chunks
+#              Nchunks<=4096/Ncpus for CPU-only chunks
+#              (run 'shownodes' command to find the number of free cpus) 
+#              Ncpus<=128, the total number of CPUs per node is 128 
+#              NPmpi<=Ncpus, the total number of CPUs allocated for MPI tasks, 
+#                              request NPmpi=Ncpus for non-OPENMP jobs                           
+#              Ngpus==1,  the total number of GPUs per node is 1    
+#              X<=256,  28 of 32 Metis modes have 256 GB of RAM                       
+#                       special jobs can request up to 1024 GB of RAM (4 nodes)
+#
+# Below, we request two chunks;
+#  each chunk needs 8 CPUs, 8 MPI processes, 1 GPU card, and 16 GB RAM                                             
+#
+#PBS -l select=1:ncpus=32:mpiprocs=128:mem=16gb
+#                           
+#
+#Required astronomical time to complete the job hh:mm:ss
+#For this job we require 15 min
+#Rules of thumb to estimate the time needed for long jobs:
+# - Estimate the fraction of events, records, or iterations, which
+#   your application can process during ~15 min
+# - Extrapolate to find the time needed to process an entire dataset
+# Example: the measured time to process 10 records is 10 sec.
+#          one can expect that 1000 records will be processed in 1000 sec 
+# Multiply the result by a factor of two to cover the positive uncertainty.
+# If the result exceeds 24-48 hours, think about how to split the job -
+# running several short jobs can decrease the waiting time in the PBS queue. 
+#
+# Use the calculated time in the directive below
+#
+#PBS -l walltime=06:00:00
+#
+# When to send a status email ("-m abe" sends e-mails at job abort, begin, and end)
+#PBS -m ae 
+#
+# Custom user's email; edit and uncomment 
+# (remove the leading "#--" to activate)
+#--#PBS -M account@niu.edu
+#
+#===================================================================#
+#==== Script Command  Section (executed on a remote node)===========#
+# Use the "normal" bash script syntacsis (google for "bash tutorials")
+# for example, https://linuxhint.com/30_bash_script_examples 
+#===================================================================#
+# Change to the directory where the 'qsub' command was executed.
+# The $PBS_O_WORKDIR is always pointing to the job submission directory
+echo "The job working directory \$PBS_O_WORKDIR is $PBS_O_WORKDIR"
+cd $PBS_O_WORKDIR       
+#
+#Print out PBS environment variables
+echo "#============="
+echo "PBS Environment variables, can be used in the job submission scripts as \$PBS_VARNAME"
+env | grep PBS
+echo "#============="
+echo "For example,we can find the number NPmpi of allocated MPI processes as"
+echo "NPmpi=\"\$(cat \$PBS_NODEFILE | wc -l)\"" 
+NPmpi="$(cat $PBS_NODEFILE | wc -l)" 
+echo "NPmpi=$NPmpi"
+#
+# Print out when and wher this job starts
+echo '****************************************************'
+echo "Job starting at: `date` at compute node `hostname`"
+echo '****************************************************'
+# Uncomment 'set -x' to enable a mode of the shell 
+# where all executed commands are printed to the output file.
+# (may help to visualize the control flow of the script if it is not functioning as expected)
+#set -x 
+#
+echo "Loading required environment modules"
+module purge; module load openmpi
+# List the loaded modules
+module list
+# Run the program 'cudaMPI', expected to be present in the submission folder
+# ('./' is the path to the current directory)
+echo "Running the ./Biq program using $NPmpi mpi processes: mpirun ./Biq -param Biq.par"
+mpirun -np 128 ./Biq -param Biq.par
+set +x
+echo '****************************************************'
+echo "Job completed at: `date`"
+echo '****************************************************'

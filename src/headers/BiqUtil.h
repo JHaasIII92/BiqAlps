@@ -14,7 +14,6 @@
 #define scaleIneq 1.0 / (1.0 + sqrt(3.0)) // scales the inequality constraints (and dual vars)
 #define MaxNineqAdded 100000
 #define mmax 10
-#define MAXITER 10000
 #define INFVAL 2147483648
 
 #define FREE_DATA(data)\

@@ -163,7 +163,7 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     std::vector<BiqVarStatus> newStatiLeft = oldStati;
     std::vector<BiqVarStatus> newStatiRight = oldStati;
 
-    std::printf("x[%d] = 0\n",branchOn_);
+    //std::printf("x[%d] = 0\n",branchOn_);
     newStatiRight.at(branchOn_) = BiqVarFixedToZero;
     AlpsNodeDesc *descRight = new BiqNodeDesc(model, newStatiRight);
     
@@ -178,7 +178,7 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
         newNodes.push_back(CoinMakeTriple(descRight, AlpsNodeStatusCandidate, dQuality));
     }
 
-    std::printf("x[%d] = 1\n",branchOn_);
+    //std::printf("x[%d] = 1\n",branchOn_);
     newStatiLeft.at(branchOn_)  = BiqVarFixedToOne;
     AlpsNodeDesc *descLeft = new BiqNodeDesc(model, newStatiLeft);
     ((BiqNodeDesc *)descLeft)->setQuality(dQuality);

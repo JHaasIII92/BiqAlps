@@ -1,16 +1,16 @@
 Biq_bAddCuts 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_bScale 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_dGapCuts -5e-2 # [default: -5e-2]
-Biq_dInitAlpha 1e-1 # [default: 1e-1]
+Biq_dInitAlpha 1e-0 # [default: 1e-1]
 Biq_dInitTol 1e-1 # [default: 1e-1]
 Biq_dMinAlpha 5e-5 # [default: 5e-5]
 Biq_dMinTol 1e-2 # [default: 1e-2]
 Biq_dScaleAlpha 0.5 # [default: 0.5]
-Biq_dScaleTol 0.95 # [default: 0.95]
-Biq_nCuts 500 # [default: 500]
+Biq_dScaleTol 0.99 # [default: 0.95]
+Biq_nCuts 1000 # [default: 500]
 Biq_nGoemanRuns 10  # [default: 10]
 Biq_nMaxAlphaIter 50 # [default: 50]
-Biq_nMaxBFGSIter 2000 # [default: 2000]
+Biq_nMaxBFGSIter 100 # [default: 2000]
 Biq_nMaxBoundingIter 100 # [default: 100]
 Biq_nMinBoundingIter 12 # [default: 12]
 Biq_nMinCuts 50 # [default: 50]
@@ -18,17 +18,18 @@ Biq_nMinCuts 50 # [default: 50]
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
 ########
 #Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n40_d025_10_k10_1_noProdCons.bc
-#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n80_d025_k20_1_noProdCons.bc
-Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n100_d025_k25_1_noProdCons.bc
+Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n80_d025_k20_1_noProdCons.bc
+#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/kcluster_n100_d025_k25_1_noProdCons.bc
 #Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/PB1_n120_d050_k30_noProdCons.bc
 #Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/PB1_n140_d050_k35_noProdCons.bc
 #Alps_instance /lstr/sahara/biqcrunch/BiqAlps/MLT-BiqCrunch_2.0/problems/k-cluster/examples/PB1_n160_d050_k40_noProdCons.bc
+#Alps_instance /lstr/sahara/biqcrunch/BiqAlps/src/maxsonetgr17.bc
 
 Alps_processNum 8
 Alps_hubNum 2
 Alps_masterInitNodeNum 16
 Alps_hubInitNodeNum 32
-Alps_timeLimit 1200.0           # Make less then pbs Wall time
+Alps_timeLimit 60.0           # Make less then pbs Wall time
 Alps_interClusterBalance 1      # 1: balancing load, 0: don't.
 Alps_intraClusterBalance 1      # 1: balancing load, 0: don't.
 Alps_unitWorkNodes 30      # or unit time

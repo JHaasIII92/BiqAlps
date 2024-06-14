@@ -92,7 +92,7 @@ class BiqParams : public AlpsParameterSet {
   /*@}*/
 
 
- public:
+  public:
   //===========================================================================
   /** For user application:
    *   Following code are do NOT need to change.
@@ -160,20 +160,41 @@ class BiqParams : public AlpsParameterSet {
 
   //---------------------------------------------------------------------------
 
+  void print() const {
+      printf("Biq Parameters:\n");
+      printf("Biq_bAddProductConstraints %d\n", entry(bAddProductConstraints));
+      printf("Biq_bAddCuts %d\n", entry(bAddCuts));
+      printf("Biq_bScale %d\n", entry(bScale));
+      printf("Biq_nCuts %d\n", entry(nCuts));
+      printf("Biq_nMaxBoundingIter %d\n", entry(nMaxBoundingIter));
+      printf("Biq_nMinBoundingIter %d\n", entry(nMinBoundingIter));
+      printf("Biq_nMinCuts %d\n", entry(nMinCuts));
+      printf("Biq_nMaxBFGSIter %d\n", entry(nMaxBFGSIter));
+      printf("Biq_nMaxAlphaIter %d\n", entry(nMaxAlphaIter));
+      printf("Biq_nGoemanRuns %d\n", entry(nGoemanRuns));
+      printf("Biq_dInitAlpha %.2e\n", entry(dInitAlpha));
+      printf("Biq_dScaleAlpha %.2f\n", entry(dScaleAlpha));
+      printf("Biq_dMinAlpha %.2e\n", entry(dMinAlpha));
+      printf("Biq_dInitTol %.2e\n", entry(dInitTol));
+      printf("Biq_dScaleTol %.2f\n", entry(dScaleTol));
+      printf("Biq_dMinTol %.2e\n", entry(dMinTol));
+      printf("Biq_dGapCuts %.2e\n", entry(dGapCuts));
+  }
+
   /**@name Packing/unpacking methods */
   /*@{*/
   /** Pack the parameter set into the buffer (AlpsEncoded is used
       as buffer Here). */
   void pack(AlpsEncoded& buf) {
     buf.writeRep(bpar_, endOfBoolParams)
-      .writeRep(ipar_, endOfIntParams)
-      .writeRep(dpar_, endOfDblParams);
+        .writeRep(ipar_, endOfIntParams)
+        .writeRep(dpar_, endOfDblParams);
     for (int i = 0; i < endOfStrParams; ++i)
       buf.writeRep(spar_[i]);
     for (int i = 0; i < endOfStrArrayParams; ++i) {
       buf.writeRep(sapar_[i].size());
       for (size_t j = 0; j < sapar_[i].size(); ++j)
-	buf.writeRep(sapar_[i][j]);
+        buf.writeRep(sapar_[i][j]);
     }
   }
   /** Unpack the parameter set from the buffer. */
@@ -193,9 +214,9 @@ class BiqParams : public AlpsParameterSet {
       buf.readRep(str_size);
       sapar_[i].reserve(str_size);
       for (size_t j = 0; j < str_size; ++j){
-	//	sapar_[i].unchecked_push_back(std::string());
-	sapar_[i].push_back(std::string());
-	buf.readRep(sapar_[i].back());
+        //	sapar_[i].unchecked_push_back(std::string());
+        sapar_[i].push_back(std::string());
+        buf.readRep(sapar_[i].back());
       }
     }
   }
