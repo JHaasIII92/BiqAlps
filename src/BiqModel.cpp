@@ -73,20 +73,17 @@ void BiqModel::InitModel()
 
     vdFracSol_.resize(nVar_);
 
-    //testEncodeDecode();
-    
+#ifdef DEBUG
+    testEncodeDecode();
+#endif
 }
 
 
 /** Read in Alps and Biq parameters. */
 void BiqModel::readParameters(const int argnum, const char * const * arglist) 
 {
-        std::cout << "Reading in ALPS parameters ..." << std::endl;
         AlpsPar_->readFromArglist(argnum, arglist);
-
-        std::cout << "Reading in Biq parameters ..." << std::endl;
         BiqPar_->readFromArglist(argnum, arglist);
-
         BiqPar_->print();
 }
 
@@ -415,7 +412,7 @@ void BiqModel::readInstance(const char* strDataFile)
 
 void BiqModel::InitEmptyModel()
 {
-    std::printf("InitEmptyModel\n");
+    //std::printf("InitEmptyModel\n");
     BiqPar_ = new BiqParams;
     ISUPPZ_ = nullptr;
     X_ = nullptr;
@@ -474,9 +471,65 @@ void BiqModel::testEncodeDecode() {
     BiqModel decodedModel = BiqModel(); // init empty model
     decodedModel.decodeToSelf(*encoded);
 
+
+    // All the params used in bound from original 
+    const bool bAddCuts = BiqPar_->entry(BiqParams::bAddCuts);
+
+    const double dMinAlpha = BiqPar_->entry(BiqParams::dMinAlpha);
+    const double dMinTol = BiqPar_->entry(BiqParams::dMinTol);
+    const double dScaleAlpha = BiqPar_->entry(BiqParams::dScaleAlpha);
+    const double dScaleTol = BiqPar_->entry(BiqParams::dScaleTol);
+
+    const int MinNiter = BiqPar_->entry(BiqParams::nMinBoundingIter);
+    const int maxNAiter = BiqPar_->entry(BiqParams::nMaxAlphaIter);
+    const int nHeurRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
+    const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
+    const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
+    const int nMaxBFGSIter = BiqPar_->entry(BiqParams::nMaxBFGSIter);
+
+    double dAlpha = BiqPar_->entry(BiqParams::dInitAlpha);
+    double dTol = BiqPar_->entry(BiqParams::dInitTol);
+
+    // All the params used in bound from decoded
+    const bool bAddCuts_decodedModel = decodedModel.BiqPar_->entry(BiqParams::bAddCuts);
+
+    const double dMinAlpha_decodedModel = decodedModel.BiqPar_->entry(BiqParams::dMinAlpha);
+    const double dMinTol_decodedModel = decodedModel.BiqPar_->entry(BiqParams::dMinTol);
+    const double dScaleAlpha_decodedModel = decodedModel.BiqPar_->entry(BiqParams::dScaleAlpha);
+    const double dScaleTol_decodedModel = decodedModel.BiqPar_->entry(BiqParams::dScaleTol);
+
+    const int MinNiter_decodedModel = decodedModel.BiqPar_->entry(BiqParams::nMinBoundingIter);
+    const int maxNAiter_decodedModel = decodedModel.BiqPar_->entry(BiqParams::nMaxAlphaIter);
+    const int nHeurRuns_decodedModel = decodedModel.BiqPar_->entry(BiqParams::nGoemanRuns);
+    const int nMaxIter_decodedModel = decodedModel.BiqPar_->entry(BiqParams::nMaxBoundingIter);
+    const int nMinAdded_decodedModel = decodedModel.BiqPar_->entry(BiqParams::nMinCuts);
+    const int nMaxBFGSIter_decodedModel = decodedModel.BiqPar_->entry(BiqParams::nMaxBFGSIter);
+
+    double dAlpha_decodedModel = decodedModel.BiqPar_->entry(BiqParams::dInitAlpha);
+    double dTol_decodedModel = decodedModel.BiqPar_->entry(BiqParams::dInitTol);
+    
+    // Now check each param with assert
+    std::printf("Checking Params ...\n");
+    assert(bAddCuts == bAddCuts_decodedModel);
+    assert(dMinAlpha == dMinAlpha_decodedModel);
+    assert(dMinTol == dMinTol_decodedModel);
+    assert(dScaleAlpha == dScaleAlpha_decodedModel);
+    assert(dScaleTol == dScaleTol_decodedModel);
+    assert(MinNiter == MinNiter_decodedModel);
+    assert(maxNAiter == maxNAiter_decodedModel);
+    assert(nHeurRuns == nHeurRuns_decodedModel);
+    assert(nMaxIter == nMaxIter_decodedModel);
+    assert(nMinAdded == nMinAdded_decodedModel);
+    assert(nMaxBFGSIter == nMaxBFGSIter_decodedModel);
+    assert(dAlpha == dAlpha_decodedModel);
+    assert(dTol == dTol_decodedModel);
+    std::printf("Params Match!\n:");
+
+
     // Now check that the decoded model has the same values as the original model
     //assert(originalModel == decodedModel);
 
+    std::printf("Checking Model Data ...\n");
     assert(max_problem_ == decodedModel.max_problem_);
     assert(N_ == decodedModel.N_);
     assert(nVar_ == decodedModel.nVar_);
@@ -553,12 +606,6 @@ void BiqModel::testEncodeDecode() {
 
     }
 
-    const int nCutsThis = BiqPar_->entry(BiqParams::nCuts);
-    const int nCutsDecoded = decodedModel.BiqPar_->entry(BiqParams::nCuts);
-    std::printf("nCutsThis = %d\n", nCutsThis);
-    std::printf("nCutsDecoded = %d\n", nCutsDecoded);
-    assert(nCutsThis == nCutsDecoded);
-    // If we got here, the test passed
     std::cout << "Encode/decode test passed!\n";
 }
 
@@ -571,7 +618,12 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     //------------------------------------------------------
 
     status = AlpsModel::encode(encoded);
-
+ 
+    //------------------------------------------------------
+    // Pack up params.
+    //------------------------------------------------------
+    BiqPar_->pack(*encoded);
+    //
     //------------------------------------------------------
     // Encode Biq part.
     //------------------------------------------------------
@@ -728,6 +780,10 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     status = AlpsModel::decodeToSelf(encoded);
 
     //------------------------------------------------------
+    // Dencode Params
+    //------------------------------------------------------
+    BiqPar_->unpack(encoded);
+    //------------------------------------------------------
     // Decode Biq part.
     //------------------------------------------------------
     
@@ -752,7 +808,7 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     int NN;
     //size_t i;
     int i;
-
+    
     // Read the data in the same order it was written
     encoded.readRep(max_problem_);
     encoded.readRep(N_);
@@ -1086,7 +1142,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     const bool bPrintTable = true;
 
     // param
-    if (bRoot) BiqPar_->print();
+    //if (bRoot) BiqPar_->print();
 
     const bool bAddCuts = BiqPar_->entry(BiqParams::bAddCuts);
 

@@ -80,7 +80,7 @@ FC = gfortran
 CXXFLAGS = $(OPTI) -DNDEBUG -Wall
 
 ifeq ($(debug), 1)
-    CXXFLAGS = -g 
+    CXXFLAGS = -DDEBUG -g 
 endif
 
 ifeq ($(prof), 1)
