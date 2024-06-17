@@ -32,12 +32,12 @@ int main(int argc, char * argv[])
     #endif
 
         broker.registerClass(AlpsKnowledgeTypeModel,new BiqModel());
-        std::printf("new BiqModel registered\n");
+        //std::printf("new BiqModel registered\n");
         broker.registerClass(AlpsKnowledgeTypeSolution,
                                  new BiqSolution(&model));
-        std::printf("new BiqSolution registered\n");
+        //std::printf("new BiqSolution registered\n");
         broker.registerClass(AlpsKnowledgeTypeNode, new BiqTreeNode(&model));
-        std::printf("*************************** Begin search *************************** \n");
+        //std::printf("*************************** Begin search *************************** \n");
         broker.search(&model); 
     return 0;
 

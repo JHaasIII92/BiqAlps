@@ -51,7 +51,7 @@
 #   more at https://latisresearch.umn.edu/creating-a-PBS-script
 #
 #The name this job 
-#PBS -N BiqAlps_KK160
+#PBS -N BiqAlps_KC160_64_2_24_24_4kCuts
 #
 #Merge standard output and standard error into the default output file
 #(in this examples cudaMPI.o12345)
@@ -82,7 +82,7 @@
 # Below, we request two chunks;
 #  each chunk needs 8 CPUs, 8 MPI processes, 1 GPU card, and 16 GB RAM                                             
 #
-#PBS -l select=1:ncpus=128:mpiprocs=12:mem=256gb
+#PBS -l select=1:ncpus=64:mpiprocs=64:mem=256gb
 #                           
 #
 #Required astronomical time to complete the job hh:mm:ss
@@ -99,7 +99,7 @@
 #
 # Use the calculated time in the directive below
 #
-#PBS -l walltime=01:00:00
+#PBS -l walltime=02:00:00
 #
 # When to send a status email ("-m abe" sends e-mails at job abort, begin, and end)
 #PBS -m ae 
@@ -144,7 +144,7 @@ module list
 # Run the program 'cudaMPI', expected to be present in the submission folder
 # ('./' is the path to the current directory)
 echo "Running the ./Biq program using $NPmpi mpi processes: mpirun ./Biq -param Biq.par"
-mpirun -np 12 ./Biq -param Biq.par
+mpirun -np 64 ./Biq -param Biq.par
 set +x
 echo '****************************************************'
 echo "Job completed at: `date`"

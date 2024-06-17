@@ -1,6 +1,6 @@
--1 =min problem
-0
-1
+1 = max problem
+0 = number of constraints
+1 = number of blocks
 251
 0 1 1 9 -76.000000
 0 1 1 26 51.000000

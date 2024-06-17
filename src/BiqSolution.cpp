@@ -33,7 +33,7 @@ void BiqSolution::print(std::ostream& os) const
 {
 
   os << "BiqAlps Solution Report: " << std::endl;
-
+  os << "Value: " << value_<< std::endl;
   int i = 1;
   for(auto & it: solution_)
   {
@@ -49,7 +49,7 @@ void BiqSolution::print(std::ostream& os) const
 
 AlpsReturnStatus BiqSolution::encode(AlpsEncoded * encoded) const  
 {
-  /*
+  
   int* ipSolution;
   int sizeSol;
 
@@ -67,26 +67,30 @@ AlpsReturnStatus BiqSolution::encode(AlpsEncoded * encoded) const
 
   encoded->writeRep(sizeSol);
   encoded->writeRep(ipSolution,sizeSol);
-*/
+
   return AlpsReturnStatusOk;
 }
 
 // Note: write and read sequence MUST same!
 AlpsKnowledge * BiqSolution::decode(AlpsEncoded& encoded) const {
-  /*
+  
   int* ipSolution = NULL;
   int sizeSol = 0;
 
-  encoded.readRep(value_);
+  std::vector<int> sol;
+  int val;
+
+  encoded.readRep(val);
 
   encoded.readRep(sizeSol);
   encoded.readRep(ipSolution, sizeSol);
 
-  solution_.resize(sizeSol);
+  
+  sol.resize(sizeSol);
   for(int i = 0; i < sizeSol; ++i)
   {
-    solution_.at(i) = ipSolution[i];
+    sol.at(i) = ipSolution[i];
   }
-*/
-  return new BiqSolution(model_);
+
+  return new BiqSolution(model_, sol, val);
 }
