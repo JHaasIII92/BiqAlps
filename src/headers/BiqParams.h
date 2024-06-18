@@ -168,6 +168,7 @@ class BiqParams : public AlpsParameterSet {
       printf("Biq_bAddCuts %d\n", entry(bAddCuts));
       printf("Biq_bScale %d\n", entry(bScale));
       printf("Biq_nCuts %d\n", entry(nCuts));
+      printf("Biq_MaxNineqAdded %d\n", entry(MaxNineqAdded));
       printf("Biq_nMaxBoundingIter %d\n", entry(nMaxBoundingIter));
       printf("Biq_nMinBoundingIter %d\n", entry(nMinBoundingIter));
       printf("Biq_nMinCuts %d\n", entry(nMinCuts));

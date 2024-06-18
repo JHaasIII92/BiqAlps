@@ -23,7 +23,7 @@ BiqParams::createKeywordList() {
     keys_.push_back(make_pair(std::string("Biq_nCuts"),
 			      AlpsParameter(AlpsIntPar, nCuts)));
     keys_.push_back(make_pair(std::string("Biq_MaxNineqAdded"),
-			      AlpsParameter(AlpsIntPar, nGoemanRuns)));
+			      AlpsParameter(AlpsIntPar, MaxNineqAdded)));
     keys_.push_back(make_pair(std::string("Biq_nMinCuts"),
 			      AlpsParameter(AlpsIntPar, nMinCuts)));
     keys_.push_back(make_pair(std::string("Biq_nMaxBoundingIter"),

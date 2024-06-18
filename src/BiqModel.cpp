@@ -38,7 +38,7 @@ void BiqModel::InitModel()
     b_   = new double[numEqualityConstraints];
     std::copy(b_original_, b_original_ + mB_original_, b_);
     /* L-BFGS-B Data */
-    int nMax = mB_ + mA_ + MaxNineqAdded;
+    int nMax = numEqualityConstraints + mA_ + MaxNineqAdded;
     int wa_length = (2 * mmax + 5) * nMax + 11 * mmax * mmax + 8 * mmax;
     int iwa_length = 3 * nMax;
 
@@ -1117,6 +1117,9 @@ void BiqModel::AllocSubCons()
 /// @return 
 double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 {
+
+
+
     // reset cuts
     Map_.clear();
     nIneq_ = 0;
@@ -1128,7 +1131,6 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     int nAdded = 0;
     int nSubtracted = 0;
     int nbitalpha = 0;
-    int len_y = mA_ + mB_ + nIneq_;
 
     double dMinAllIneq;
     
@@ -1159,10 +1161,14 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
     const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
     const int nMaxBFGSIter = BiqPar_->entry(BiqParams::nMaxBFGSIter);
+    const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
 
     double dAlpha = BiqPar_->entry(BiqParams::dInitAlpha);
     double dTol = BiqPar_->entry(BiqParams::dInitTol);
     // Biq.par
+
+    //int len_y = mA_ + mB_ + nIneq_;
+    int len_y = mA_ + mB_ + MaxNineqAdded;
 
     /*
     std::printf("\n");
@@ -1190,10 +1196,11 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     {
         y_[i] = 0.0;
     }
-    
+
     sim(dAlpha);
     for(i = 0; i < nMaxIter; ++i)
     {
+
         // update iteration countrer
         ++nbitalpha;
 
@@ -1280,6 +1287,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
     }
     //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
+    exit(1);
     
     return dRetBound;
 }
@@ -1357,6 +1365,10 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     strcpy(task, "START");
     for(i = 5; i < 60; ++i) task[i] = ' ';
 
+
+    const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
+    std::printf("len_y = %d\n", len_y);
+    std::printf("mB_ + mA_ + MaxNineqAdded = %d\n", mB_ + mA_ + MaxNineqAdded);
     
     // Initialize y
     int tmpPos = 0;
@@ -2285,6 +2297,7 @@ double BiqModel::GetViolatedCuts()
     double dRetMinIneq = INFINITY;
     double dTestIneq;
     int i, j, k, type = 0;
+    double y;
     // params
     const double dGapCuts = BiqPar_->entry(BiqParams::dGapCuts);
     const int nCuts = BiqPar_->entry(BiqParams::nCuts);
@@ -2313,12 +2326,13 @@ double BiqModel::GetViolatedCuts()
                     dTestIneq = EvalInequalities(static_cast<TriType>(type), i, j, k);
                     // keep track of the minimum ineq
                     dRetMinIneq = (dTestIneq < dRetMinIneq) ? dTestIneq : dRetMinIneq;
-                    
+
+                    y = 0.0; // initialize the dual variable to be zero for a new cut
                     btiTemp = BiqTriInequality(
                                     static_cast<TriType>(type),
                                     i,j,k,
                                     dTestIneq,
-                                    0.0);
+                                    y);
 
                     if(static_cast<int>(Heap_.size()) < nCuts)
                     {
