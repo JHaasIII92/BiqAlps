@@ -25,6 +25,7 @@ class BiqParams : public AlpsParameterSet {
   enum intParams{
       nCuts,
       nMinCuts,
+      MaxNineqAdded,
       nMaxBoundingIter,
       nMaxBFGSIter,
       nMinBoundingIter,

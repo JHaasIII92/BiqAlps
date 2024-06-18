@@ -51,7 +51,7 @@
 #   more at https://latisresearch.umn.edu/creating-a-PBS-script
 #
 #The name this job 
-#PBS -N BiqAlps_KC160_64_2_24_24_4kCuts
+#PBS -N Bbqp250-8
 #
 #Merge standard output and standard error into the default output file
 #(in this examples cudaMPI.o12345)
@@ -82,7 +82,7 @@
 # Below, we request two chunks;
 #  each chunk needs 8 CPUs, 8 MPI processes, 1 GPU card, and 16 GB RAM                                             
 #
-#PBS -l select=1:ncpus=64:mpiprocs=64:mem=256gb
+#PBS -l select=1:ncpus=64:mpiprocs=64:mem=8gb
 #                           
 #
 #Required astronomical time to complete the job hh:mm:ss

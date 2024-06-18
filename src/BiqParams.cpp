@@ -22,6 +22,8 @@ BiqParams::createKeywordList() {
     // IntPar
     keys_.push_back(make_pair(std::string("Biq_nCuts"),
 			      AlpsParameter(AlpsIntPar, nCuts)));
+    keys_.push_back(make_pair(std::string("Biq_MaxNineqAdded"),
+			      AlpsParameter(AlpsIntPar, nGoemanRuns)));
     keys_.push_back(make_pair(std::string("Biq_nMinCuts"),
 			      AlpsParameter(AlpsIntPar, nMinCuts)));
     keys_.push_back(make_pair(std::string("Biq_nMaxBoundingIter"),
@@ -72,6 +74,7 @@ BiqParams::setDefaultEntries() {
     //-------------------------------------------------------------------------
     // IntPar
     setEntry(nCuts, 500);
+    setEntry(MaxNineqAdded, 10000);
     setEntry(nMaxBoundingIter, 100);
     setEntry(nMinBoundingIter, 12);
     setEntry(nMinCuts, 50);

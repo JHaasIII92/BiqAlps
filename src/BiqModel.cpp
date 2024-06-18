@@ -9,6 +9,7 @@ void BiqModel::InitModel()
     // get the params needed for initilization 
     const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
     const int nCuts = BiqPar_->entry(BiqParams::nCuts);
+    const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
 
     ISUPPZ_ = new int[2*N_];
     X_ = new double[N_*N_];
@@ -916,6 +917,7 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     // get the params needed for initilization 
     //const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
     const int nCuts = BiqPar_->entry(BiqParams::nCuts);
+    const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
 
     ISUPPZ_ = new int[2*N_];
     X_ = new double[N_*N_];
