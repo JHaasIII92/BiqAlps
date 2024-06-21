@@ -18,6 +18,8 @@ BiqParams::createKeywordList() {
 			      AlpsParameter(AlpsBoolPar, bAddCuts)));
     keys_.push_back(make_pair(std::string("Biq_bScale"),
 			      AlpsParameter(AlpsBoolPar, bScale)));
+    keys_.push_back(make_pair(std::string("Biq_bSolutionProvided"),
+                  AlpsParameter(AlpsBoolPar, bSolutionProvided)));
     //-------------------------------------------------------------------------
     // IntPar
     keys_.push_back(make_pair(std::string("Biq_nCuts"),
@@ -52,6 +54,8 @@ BiqParams::createKeywordList() {
 			      AlpsParameter(AlpsDoublePar, dMinTol)));
     keys_.push_back(make_pair(std::string("Biq_dGapCuts"),
 			      AlpsParameter(AlpsDoublePar, dGapCuts)));
+    keys_.push_back(make_pair(std::string("Biq_dSolutionValue"),
+                    AlpsParameter(AlpsDoublePar, dSolutionValue)));
     //-------------------------------------------------------------------------
     // StringPar
 
@@ -70,6 +74,7 @@ BiqParams::setDefaultEntries() {
     setEntry(bAddProductConstraints, true);
     setEntry(bAddCuts, true);
     setEntry(bScale, true);
+    setEntry(bSolutionProvided, false);
 
     //-------------------------------------------------------------------------
     // IntPar
@@ -90,6 +95,7 @@ BiqParams::setDefaultEntries() {
     setEntry(dScaleTol, 0.95);
     setEntry(dMinTol, 1e-2);
     setEntry(dGapCuts, -5e-2);
+    setEntry(dSolutionValue, 0.0);
     //-------------------------------------------------------------------------
     // StringPar
 

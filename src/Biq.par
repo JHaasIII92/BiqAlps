@@ -1,5 +1,6 @@
 Biq_bAddCuts 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_bScale 1 # [default: 1] 1: add constraints, 0: don't.
+Biq_bSolutionProvided 1 # [default: 0]
 Biq_dGapCuts -5e-2 # [default: -5e-2]
 Biq_dInitAlpha 1e-1 # [default: 1e-1]
 Biq_dInitTol 1e-1 # [default: 1e-1]
@@ -7,6 +8,7 @@ Biq_dMinAlpha 5e-5 # [default: 5e-5]
 Biq_dMinTol 1e-2 # [default: 1e-2]
 Biq_dScaleAlpha 0.5 # [default: 0.5]
 Biq_dScaleTol 0.95 # [default: 0.95]
+Biq_dSolutionValue 0.0 # [default: 0.0]
 Biq_nCuts 2000 # [default: 500]
 Biq_nGoemanRuns 10  # [default: 10]
 Biq_nMaxAlphaIter 50 # [default: 50]
@@ -17,7 +19,10 @@ Biq_nMinCuts 50 # [default: 50]
 Biq_MaxNineqAdded 10000 # [default: 10000]
 ########
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
-Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/g05_60.0.bc
+
+#Alps_instance bqp50-1.sparse.bc
+Alps_instance example.bc
+
 Alps_processNum 64
 Alps_hubNum 8
 Alps_masterInitNodeNum 8

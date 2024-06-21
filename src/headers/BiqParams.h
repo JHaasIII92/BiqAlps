@@ -16,6 +16,7 @@ class BiqParams : public AlpsParameterSet {
     bAddProductConstraints,    
     bAddCuts,
     bScale,
+    bSolutionProvided,
 
     //
     endOfBoolParams
@@ -45,6 +46,7 @@ class BiqParams : public AlpsParameterSet {
     dMinTol,
     dGapCuts,
     dInitTol,
+    dSolutionValue,
 
     //
     endOfDblParams
@@ -167,6 +169,7 @@ class BiqParams : public AlpsParameterSet {
       printf("Biq_bAddProductConstraints %d\n", entry(bAddProductConstraints));
       printf("Biq_bAddCuts %d\n", entry(bAddCuts));
       printf("Biq_bScale %d\n", entry(bScale));
+      printf("Biq_bSolutionProvided %d\n", entry(bSolutionProvided));
       printf("Biq_nCuts %d\n", entry(nCuts));
       printf("Biq_MaxNineqAdded %d\n", entry(MaxNineqAdded));
       printf("Biq_nMaxBoundingIter %d\n", entry(nMaxBoundingIter));
@@ -182,6 +185,7 @@ class BiqParams : public AlpsParameterSet {
       printf("Biq_dScaleTol %.2f\n", entry(dScaleTol));
       printf("Biq_dMinTol %.2e\n", entry(dMinTol));
       printf("Biq_dGapCuts %.2e\n", entry(dGapCuts));
+      printf("Biq_dSolutionValue %.2e\n", entry(dSolutionValue));
   }
 
   /**@name Packing/unpacking methods */

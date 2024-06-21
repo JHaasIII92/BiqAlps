@@ -463,6 +463,7 @@ BiqModel::~BiqModel()
     FREE_DATA(b_);     
 }
 
+#ifdef DEBUG
 void BiqModel::testEncodeDecode() {
     // Encode the original model
     AlpsEncoded* encoded = new AlpsEncoded();
@@ -609,6 +610,7 @@ void BiqModel::testEncodeDecode() {
 
     std::cout << "Encode/decode test passed!\n";
 }
+#endif
 
 AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
 {
@@ -1143,7 +1145,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     bool bGiveUp = false;
     bool bStopSDPBound = false;
 
-    const bool bPrintTable = true;
+    const bool bPrintTable = false;
 
     // param
     //if (bRoot) BiqPar_->print();
@@ -1287,7 +1289,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
     }
     //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
-    exit(1);
+    //exit(1);
     
     return dRetBound;
 }
@@ -1300,8 +1302,8 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
 
     if(iter == 1)
     {
-        std::printf("=========================================================================================\n");
-        std::printf("%4s  %6s  %8s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %4s  %4s  %4s\n", 
+        std::printf("===============================================================================================\n");
+        std::printf("%4s  %6s  %8s  %5s  %5s  %4s  %5s  %5s  %5s  %6s  %6s  %6s  %6s\n", 
                     "Iter", 
                     "Time", 
                     //"gap", 
@@ -1316,10 +1318,10 @@ void BiqModel::PrintBoundingTable(int iter, int nBit, int nAdded, int nSubtracte
                     "NCut", 
                     "NSub", 
                     "NAdd");
-        std::printf("=========================================================================================\n");
+        std::printf("===============================================================================================\n");
     }
 
-    std::printf("%4d  %6.1f  %8.2f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %5.0e  %6.0e  %4d  -%-3d  +%-3d\n", 
+    std::printf("%4d  %6.1f  %8.2f  %5.0e  %5.0e  %4d  %5.0e  %5.0e  %5.0e  %6.0e  %6d   -%-5d  +%-5d\n", 
                 iter, 
                 0.0, /* TODO time*/
                 //dGap, 
@@ -1365,10 +1367,6 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
     strcpy(task, "START");
     for(i = 5; i < 60; ++i) task[i] = ' ';
 
-
-    const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
-    std::printf("len_y = %d\n", len_y);
-    std::printf("mB_ + mA_ + MaxNineqAdded = %d\n", mB_ + mA_ + MaxNineqAdded);
     
     // Initialize y
     int tmpPos = 0;
@@ -2699,12 +2697,12 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
     if(max_problem_ && dVal > bestVal)
     {
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dVal);
-        //printf("Beta updated => %f\n",-dVal);
+        printf("Beta updated => %f\n",-dVal);
     }
     else if(!max_problem_ && dVal < bestVal)
     {     
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
-        ///printf("Beta updated => %f\n",dVal);
+        printf("Beta updated => %f\n",dVal);
     }   
     else
     {
