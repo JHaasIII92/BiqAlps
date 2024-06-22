@@ -46,6 +46,7 @@ OBJS =  $(OBJDIR)BiqMain.o     \
 	    $(OBJDIR)BiqSolution.o \
 	    $(OBJDIR)BiqTreeNode.o \
 	    $(OBJDIR)BiqUtil.o     \
+		$(OBJDIR)BiqMessage.o     \
 		$(OBJDIR)BiqModelData.o
 
 LBFGSBOBJS = $(OBJDIR)lbfgsb.o  \

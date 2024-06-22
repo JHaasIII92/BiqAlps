@@ -3,11 +3,13 @@
 
 #include "AlpsKnowledge.h"
 #include "AlpsModel.h"
+#include "CoinMessageHandler.hpp"
 #include "BiqTreeNode.h"
 #include "BiqNodeDesc.h"
 #include "BiqSolution.h"
 #include "BiqUtil.h"
 #include "BiqParams.h"
+#include "BiqMessage.h"
 #include "math.h"
 #include<iostream>
 #include <utility>
@@ -108,7 +110,13 @@ private:
 
 
     BiqParams *BiqPar_;
+
+    /// Message handler
+    CoinMessageHandler * handler_;
+    /// Biq messages
+    CoinMessages messages_;
     
+    bool defaultHandler_;
 public:
     BiqModel(){InitEmptyModel();};
     ~BiqModel();
@@ -148,7 +156,34 @@ public:
 
     void readParameters(const int argnum, const char * const * arglist);
 
+    /**@name Message handling */
+    //@{
+    /// Pass in Message handler (not deleted at end)
+    void passInMessageHandler(CoinMessageHandler * handler)
+        {
+            if (defaultHandler_) {
+                delete handler_;
+                handler_ = NULL;
+            }
+            defaultHandler_ = false;
+            handler_ = handler;
+        }
 
+    /// Set language
+    void newLanguage(CoinMessages::Language language)
+        { messages_ = BiqMessage(language); }
+    void setLanguage(CoinMessages::Language language)
+        { newLanguage(language); }
+    /// Return handler
+    CoinMessageHandler * messageHandler() const
+        { return handler_; }
+    /// Return messages
+    CoinMessages messages()
+        { return messages_; }
+    /// Return pointer to messages
+    CoinMessages * messagesPointer()
+        { return &messages_; }
+    //@}
 
 
 private:

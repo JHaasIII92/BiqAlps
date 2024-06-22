@@ -3,6 +3,8 @@
 #include "AlpsKnowledge.h"
 #include "headers/BiqSolution.h"
 #include "headers/BiqParams.h"
+#include "headers/BiqMessage.h"
+#include <cstring>
 
 void BiqModel::InitModel() 
 {
@@ -415,6 +417,10 @@ void BiqModel::InitEmptyModel()
 {
     //std::printf("InitEmptyModel\n");
     BiqPar_ = new BiqParams;
+    handler_ = new CoinMessageHandler();
+    handler_->setLogLevel(2);
+    defaultHandler_ = true;
+    messages_ = BiqMessage();
     ISUPPZ_ = nullptr;
     X_ = nullptr;
     W_ = nullptr;
@@ -460,7 +466,8 @@ BiqModel::~BiqModel()
     FREE_DATA(pdTmp_sub_);   
     FREE_DATA(Q_); 
     FREE_DATA(a_); 
-    FREE_DATA(b_);     
+    FREE_DATA(b_);  
+    FREE_DATA(handler_);
 }
 
 #ifdef DEBUG
@@ -1141,12 +1148,14 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     double dPrev_f = MAXFLOAT;
     double  bestVal;
     double dGap;
+    
     bool prune = false;
     bool bGiveUp = false;
     bool bStopSDPBound = false;
 
     const bool bPrintTable = false;
 
+    char cExitReason[100];
     // param
     //if (bRoot) BiqPar_->print();
 
@@ -1172,10 +1181,10 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     //int len_y = mA_ + mB_ + nIneq_;
     int len_y = mA_ + mB_ + MaxNineqAdded;
 
-    
+    /*
     std::printf("\n");
     std::printf("SDPbound started\n");
-    /*
+    
     std::printf("    bRoot = %d\n", bRoot);
     for(int i=0; i < nVar_; ++i)
     {
@@ -1261,14 +1270,20 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nMaxBFGSIter)
         {
-            printf("bestVal: %f\n", bestVal);
-            PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);
-            if (prune) std::printf("Prune    dRetBound: %f  bestVal: %f\n", dRetBound, bestVal);
-            if (bGiveUp) std::printf("Give Up\n");
-            if (bStopSDPBound) std::printf("Stop SDP Bound\n");
-            if (iStatus == -1) std::printf("Status -1\n");
-            if (nbit >= nMaxBFGSIter) std::printf("nbit >= nMaxBFGSIter\n");
+
+            // Build the messsage to go to output
+            if(prune) std::strcpy(cExitReason,"Prune"); 
+            else if(bGiveUp) std::strcpy(cExitReason,"Give Up");
+            else if(bStopSDPBound) std::strcpy(cExitReason,"Stop SDP Bound");
+            else if(iStatus == -1) std::strcpy(cExitReason,"Status -1");
+            else if(nbit >= nMaxBFGSIter) std::strcpy(cExitReason,"nbit >= nMaxBFGSIter");
+            else std::strcpy(cExitReason,"Warning: No Reason!!");
             
+            //BIQ_BOUND_END > "Bounding Complete:\n    Bound: %f\n    BestVal: %f\n    Reason: %s\n" 
+            handler_->message(BIQ_BOUND_END, messages_)
+                << dRetBound
+                << bestVal
+                << cExitReason;
             break;
         }
         // update parameters
@@ -2720,7 +2735,7 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
     {     
         
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
-        printf("Val => %f  Beta => %f Force? => %d \n",dVal, bestVal, bForceAdd);
+        //printf("Val => %f  Beta => %f Force? => %d \n",dVal, bestVal, bForceAdd);
     }   
     else
     {
