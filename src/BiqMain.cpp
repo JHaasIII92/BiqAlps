@@ -34,9 +34,10 @@ int main(int argc, char * argv[])
     broker.registerClass(AlpsKnowledgeTypeSolution, new BiqSolution(&model));
     broker.registerClass(AlpsKnowledgeTypeNode, new BiqTreeNode(&model));
     const bool bSolutionProvided = model.BiqPar()->entry(BiqParams::bSolutionProvided);
+    const double dSolutionValue = model.BiqPar()->entry(BiqParams::dSolutionValue);
     if (bSolutionProvided) {
-        const double dSolutionValue = model.BiqPar()->entry(BiqParams::dSolutionValue);
-        std::printf("Solution value provided: %f\n", dSolutionValue);
+        // if user provided a solution then add it to the knowledge
+        // need to figure out how to recive a solution vector
     }
 
     broker.search(&model); 

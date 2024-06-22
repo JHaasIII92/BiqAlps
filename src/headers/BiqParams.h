@@ -193,7 +193,6 @@ class BiqParams : public AlpsParameterSet {
   /** Pack the parameter set into the buffer (AlpsEncoded is used
       as buffer Here). */
   void pack(AlpsEncoded& buf) {
-    std::printf("void pack(AlpsEncoded& buf)endOfIntParams: %d\n", endOfIntParams);
     buf.writeRep(bpar_, endOfBoolParams)
         .writeRep(ipar_, endOfIntParams)
         .writeRep(dpar_, endOfDblParams);
@@ -207,7 +206,6 @@ class BiqParams : public AlpsParameterSet {
   }
   /** Unpack the parameter set from the buffer. */
   void unpack(AlpsEncoded& buf) {
-    std::printf("unpack(AlpsEncoded& buf) endOfIntParams: %d\n", endOfIntParams);
     int dummy;
     // No need to allocate the arrays, they are of fixed length
     dummy = static_cast<int>(endOfBoolParams);

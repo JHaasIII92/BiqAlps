@@ -1172,9 +1172,10 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     //int len_y = mA_ + mB_ + nIneq_;
     int len_y = mA_ + mB_ + MaxNineqAdded;
 
-    /*
+    
     std::printf("\n");
     std::printf("SDPbound started\n");
+    /*
     std::printf("    bRoot = %d\n", bRoot);
     for(int i=0; i < nVar_; ++i)
     {
@@ -1184,6 +1185,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         }
     }
     */
+    
 
 
     // 
@@ -1259,13 +1261,14 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nMaxBFGSIter)
         {
-            /*
-            if (prune) std::printf("Prune\n");
+            printf("bestVal: %f\n", bestVal);
+            PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);
+            if (prune) std::printf("Prune    dRetBound: %f  bestVal: %f\n", dRetBound, bestVal);
             if (bGiveUp) std::printf("Give Up\n");
             if (bStopSDPBound) std::printf("Stop SDP Bound\n");
             if (iStatus == -1) std::printf("Status -1\n");
             if (nbit >= nMaxBFGSIter) std::printf("nbit >= nMaxBFGSIter\n");
-            */
+            
             break;
         }
         // update parameters
@@ -2434,6 +2437,10 @@ double BiqModel::EvalSolution(std::vector<int> & solution)
         }
     }
 
+    if(!max_problem_)
+    {
+        dRetSol = -dRetSol;
+    }
     return dRetSol;
 }
 
@@ -2683,26 +2690,37 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
 
 void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
 {
-    int bestVal = 0;
+
+    double bestVal = 0;
+    bool bForceAdd = false;
+    if(broker()->hasKnowledge(AlpsKnowledgeTypeSolution))
+    {
+        bestVal = static_cast<double>(broker()->getIncumbentValue());
+    }
+    else
+    {
+        bForceAdd = true;
+    }
     
     // The quality of a solution is the negative of the objective value
     //  since Alps consideres sols with lower quality values better.
-    bestVal = static_cast<int>(broker()->getIncumbentValue());
+    
     if(max_problem_)
     {
         bestVal = -bestVal;
     }
-
+    //printf("Val => %f  Beta => %f test => %d\n",dVal, bestVal, dVal < bestVal);
     BiqSolution* biqSol = new BiqSolution( this, solution, dVal);
-    if(max_problem_ && dVal > bestVal)
+    if(max_problem_ && (dVal > bestVal || bForceAdd))
     {
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dVal);
-        printf("Beta updated => %f\n",-dVal);
+        //printf("Beta updated => %f\n",-dVal);
     }
-    else if(!max_problem_ && dVal < bestVal)
+    else if(!max_problem_ && (dVal < bestVal || bForceAdd))
     {     
+        
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
-        printf("Beta updated => %f\n",dVal);
+        printf("Val => %f  Beta => %f Force? => %d \n",dVal, bestVal, bForceAdd);
     }   
     else
     {

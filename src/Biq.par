@@ -2,7 +2,7 @@ Biq_bAddCuts 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_bScale 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_bSolutionProvided 1 # [default: 0]
 Biq_dGapCuts -5e-2 # [default: -5e-2]
-Biq_dInitAlpha 1e-1 # [default: 1e-1]
+Biq_dInitAlpha 1e0 # [default: 1e-1]
 Biq_dInitTol 1e-1 # [default: 1e-1]
 Biq_dMinAlpha 5e-5 # [default: 5e-5]
 Biq_dMinTol 1e-2 # [default: 1e-2]
@@ -10,23 +10,23 @@ Biq_dScaleAlpha 0.5 # [default: 0.5]
 Biq_dScaleTol 0.95 # [default: 0.95]
 Biq_dSolutionValue 0.0 # [default: 0.0]
 Biq_nCuts 2000 # [default: 500]
-Biq_nGoemanRuns 10  # [default: 10]
+Biq_nGoemanRuns 20  # [default: 10]
 Biq_nMaxAlphaIter 50 # [default: 50]
-Biq_nMaxBFGSIter 4000 # [default: 2000]
+Biq_nMaxBFGSIter 1000 # [default: 2000]
 Biq_nMaxBoundingIter 100 # [default: 100]
-Biq_nMinBoundingIter 12 # [default: 12]
+Biq_nMinBoundingIter 6 # [default: 12]
 Biq_nMinCuts 50 # [default: 50]
 Biq_MaxNineqAdded 10000 # [default: 10000]
 ########
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
 
 #Alps_instance bqp50-1.sparse.bc
-Alps_instance example.bc
+Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp250-10.sparse.bc
 
 Alps_processNum 64
 Alps_hubNum 8
 Alps_masterInitNodeNum 8
-Alps_hubInitNodeNum 4
+Alps_hubInitNodeNum 8
 Alps_timeLimit 7200.0           # Make less then pbs Wall time
 Alps_interClusterBalance 1      # 1: balancing load, 0: don't.
 Alps_intraClusterBalance 1      # 1: balancing load, 0: don't.
