@@ -185,7 +185,7 @@ class BiqParams : public AlpsParameterSet {
       printf("Biq_dScaleTol %.2f\n", entry(dScaleTol));
       printf("Biq_dMinTol %.2e\n", entry(dMinTol));
       printf("Biq_dGapCuts %.2e\n", entry(dGapCuts));
-      printf("Biq_dSolutionValue %.2e\n", entry(dSolutionValue));
+      printf("Biq_dSolutionValue %.2e\n", entry(dSolutionValue));  
   }
 
   /**@name Packing/unpacking methods */

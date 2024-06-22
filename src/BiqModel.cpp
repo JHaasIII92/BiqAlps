@@ -467,7 +467,11 @@ BiqModel::~BiqModel()
     FREE_DATA(Q_); 
     FREE_DATA(a_); 
     FREE_DATA(b_);  
-    FREE_DATA(handler_);
+    if ( handler_ != 0)
+    {
+        delete handler_;
+        handler_ = 0;
+    }
 }
 
 #ifdef DEBUG

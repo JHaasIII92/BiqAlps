@@ -21,12 +21,12 @@ Biq_MaxNineqAdded 10000 # [default: 10000]
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
 
 #Alps_instance bqp50-1.sparse.bc
-Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp250-10.sparse.bc
+Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp250-9.sparse.bc
 
-Alps_processNum 4
-Alps_hubNum 2
-Alps_masterInitNodeNum 2
-Alps_hubInitNodeNum 2
+Alps_processNum 128
+Alps_hubNum 16
+Alps_masterInitNodeNum 8
+Alps_hubInitNodeNum 8
 Alps_timeLimit 7200.0           # Make less then pbs Wall time
 Alps_interClusterBalance 1      # 1: balancing load, 0: don't.
 Alps_intraClusterBalance 1      # 1: balancing load, 0: don't.
