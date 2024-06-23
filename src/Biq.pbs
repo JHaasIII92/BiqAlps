@@ -51,7 +51,7 @@
 #   more at https://latisresearch.umn.edu/creating-a-PBS-script
 #
 #The name this job 
-#PBS -N Bbqp250-9_test6
+#PBS -N KC160_64_dhub
 #
 #Merge standard output and standard error into the default output file
 #(in this examples cudaMPI.o12345)
@@ -82,7 +82,7 @@
 # Below, we request two chunks;
 #  each chunk needs 8 CPUs, 8 MPI processes, 1 GPU card, and 16 GB RAM                                             
 #
-#PBS -l select=1:ncpus=128:mpiprocs=128:mem=256gb
+#PBS -l select=1:ncpus=64:mpiprocs=64:mem=64gb
 #                           
 #
 #Required astronomical time to complete the job hh:mm:ss
@@ -144,7 +144,17 @@ module list
 # Run the program 'cudaMPI', expected to be present in the submission folder
 # ('./' is the path to the current directory)
 echo "Running the ./Biq program using $NPmpi mpi processes: mpirun ./Biq -param Biq.par"
-mpirun -np 128 ./Biq -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-1.sparse.bc -param Biq.par 
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-2.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-3.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-16.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-5.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-6.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-7.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-8.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-9.sparse.bc -param Biq.par
+#mpirun -np 4 ./Biq -Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp50-10.sparse.bc -param Biq.par
+mpirun -np 64 ./Biq -param Biq.par
 set +x
 echo '****************************************************'
 echo "Job completed at: `date`"

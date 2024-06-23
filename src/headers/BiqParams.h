@@ -32,7 +32,7 @@ class BiqParams : public AlpsParameterSet {
       nMinBoundingIter,
       nMaxAlphaIter,
       nGoemanRuns,
-
+      nPrimalRuns,
       //
       endOfIntParams
   };
@@ -178,6 +178,7 @@ class BiqParams : public AlpsParameterSet {
       printf("Biq_nMaxBFGSIter %d\n", entry(nMaxBFGSIter));
       printf("Biq_nMaxAlphaIter %d\n", entry(nMaxAlphaIter));
       printf("Biq_nGoemanRuns %d\n", entry(nGoemanRuns));
+      printf("Biq_nPrimalRuns %d\n", entry(nPrimalRuns));  
       printf("Biq_dInitAlpha %.2e\n", entry(dInitAlpha));
       printf("Biq_dScaleAlpha %.2f\n", entry(dScaleAlpha));
       printf("Biq_dMinAlpha %.2e\n", entry(dMinAlpha));

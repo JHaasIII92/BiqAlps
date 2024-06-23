@@ -1287,7 +1287,9 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
             handler_->message(BIQ_BOUND_END, messages_)
                 << dRetBound
                 << bestVal
-                << cExitReason;
+                << cExitReason
+                << i+1
+                << nIneq_;
             break;
         }
         // update parameters
@@ -2531,33 +2533,55 @@ bool BiqModel::isFeasibleSolution(std::vector<int> solution)
 
 double BiqModel::primalHeuristic()
 {
+
+    assert(viSolution_1_.size() == viSolution_2_.size());
+
+    const int nRuns = BiqPar_->entry(BiqParams::nPrimalRuns);
+
     double dRet = 0.0;
     double gamma;
     double dRand;
     double dTempEval;
-    
-    for(gamma = 0.0; gamma < 1.0; gamma += 0.01)
+
+    bool bStop = false;
+
+    for(int i = 0; i <= nRuns; ++i)
     {
-        for(auto &it: viSolution_1_)
+        if(bStop) break;
+        for(gamma = 0.0; gamma < 1.0; gamma += 0.01)
         {
-            dRand = ((double) rand() / (double) RAND_MAX);
-            if(dRand > gamma)
+            if(bStop) break;
+            for(size_t j = 0; j < viSolution_1_.size(); ++j)
             {
-                it = 1;
+                dRand = (static_cast<double>(rand())/ 2147483647.0);
+                if(dRand > gamma)
+                {
+                    viSolution_1_.at(j) = 1;
+                    viSolution_2_.at(j) = 0;
+                }
+                else
+                {
+                    viSolution_1_.at(j) = 0;
+                    viSolution_2_.at(j) = 1;
+                }
             }
-            else
+            if(isFeasibleSolution(viSolution_1_))
             {
-                it = 0;
+                std::printf("BiqModel::primalHeuristic() Hit one!!\n");
+                dTempEval = EvalSolution(viSolution_1_);
+                UpdateSol(dTempEval, viSolution_1_);
+                bStop = true;
+            }
+            if(!bStop && isFeasibleSolution(viSolution_2_))
+            {
+                std::printf("BiqModel::primalHeuristic() Hit one!!\n");
+                dTempEval = EvalSolution(viSolution_2_);
+                UpdateSol(dTempEval, viSolution_2_);
+                bStop = true;
             }
         }
     }
     
-        if(isFeasibleSolution(viSolution_1_))
-        {
-            dTempEval = EvalSolution(viSolution_1_);
-            UpdateSol(dTempEval, viSolution_1_);
-        }
-
     return dRet;
 }
 
@@ -2776,6 +2800,8 @@ bool BiqModel::pruneTest(double dBound)
 {
     if(broker()->hasKnowledge(AlpsKnowledgeTypeSolution) == false)
     {
+        // try primal 
+        primalHeuristic();
         return false;
     }
     bool bRet = false;
