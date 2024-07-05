@@ -63,8 +63,10 @@ void BiqModel::InitModel()
     // Set cut data 
     Cuts_.resize(MaxNineqAdded); // or start small and add space when needed
     container.reserve(nCuts);
-
     nIneq_ = 0;
+
+    // we do not have past bests
+    bHasPastBest_ = false;
 
     // set some memory for the sTemp_sub_ matrix
     sTmp_sub_.resize(N_*N_);
@@ -757,6 +759,8 @@ AlpsReturnStatus BiqModel::encode(AlpsEncoded * encoded) const
     encoded->writeRep(mB_original_); // needed for computing objective value
     encoded->writeRep(mA_);
     encoded->writeRep(mB_);
+    encoded->writeRep(iPastBest_);
+    encoded->writeRep(bHasPastBest_);
 
     // write the arrays
     encoded->writeRep(Q_,NN);
@@ -830,7 +834,10 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     encoded.readRep(mB_original_);
     encoded.readRep(mA_);
     encoded.readRep(mB_);
+    encoded.readRep(iPastBest_);
+    encoded.readRep(bHasPastBest_);
 
+    // allocate for readRep
     NN = N_*N_;
     Q_ = new double[NN];
     a_ = new double[mA_];
@@ -1172,7 +1179,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
     const int MinNiter = BiqPar_->entry(BiqParams::nMinBoundingIter);
     const int maxNAiter = BiqPar_->entry(BiqParams::nMaxAlphaIter);
-    const int nHeurRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
+    const int nGoemanRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
     const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
     const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
     const int nMaxBFGSIter = BiqPar_->entry(BiqParams::nMaxBFGSIter);
@@ -1184,7 +1191,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
     //int len_y = mA_ + mB_ + nIneq_;
     int len_y = mA_ + mB_ + MaxNineqAdded;
-
+    int nHeurRuns = nGoemanRuns*nVar_;
     /*
     std::printf("\n");
     std::printf("SDPbound started\n");
@@ -1266,10 +1273,9 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
     
-        if(bPrintTable && bRoot)
-        {
-            PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
-        }
+
+        //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
+        
         
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nMaxBFGSIter)
@@ -1310,7 +1316,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
     if(bPrintTable && bRoot)
     {
-        std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
+        //std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
     }
     //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
     //exit(1);
@@ -1424,7 +1430,7 @@ int BiqModel::CallLBFGSB(double dAlpha, double dTol, int &nbit)
         setulb_(len_y, mem, y_, binf_, bsup_, nbd_, f_, g_,
                 factr, pgtol, wa_, iwa_, task, iprint,
                 csave, lsave, isave, dsave);
-
+    
         if(strncmp(task, "FG", 2) == 0)
         {
            // L-BFGS-B requesting new f and g
@@ -2545,7 +2551,7 @@ double BiqModel::primalHeuristic()
 
     bool bStop = false;
 
-    for(int i = 0; i <= nRuns; ++i)
+    for(int i = 0; i < nRuns; ++i)
     {
         if(bStop) break;
         for(gamma = 0.0; gamma < 1.0; gamma += 0.01)
@@ -2736,6 +2742,7 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
 
     double bestVal = 0;
     bool bForceAdd = false;
+
     if(broker()->hasKnowledge(AlpsKnowledgeTypeSolution))
     {
         bestVal = static_cast<double>(broker()->getIncumbentValue());
@@ -2746,12 +2753,12 @@ void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
     }
     
     // The quality of a solution is the negative of the objective value
-    //  since Alps consideres sols with lower quality values better.
-    
+    // since Alps consideres sols with lower quality values better.
     if(max_problem_)
     {
         bestVal = -bestVal;
     }
+    
     //printf("Val => %f  Beta => %f test => %d\n",dVal, bestVal, dVal < bestVal);
     BiqSolution* biqSol = new BiqSolution( this, solution, dVal);
     if(max_problem_ && (dVal > bestVal || bForceAdd))
@@ -2798,14 +2805,22 @@ std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vb
 
 bool BiqModel::pruneTest(double dBound)
 {
-    if(broker()->hasKnowledge(AlpsKnowledgeTypeSolution) == false)
+    if(hasPastBest() == false || broker()->hasKnowledge(AlpsKnowledgeTypeSolution) == false)
     {
         // try primal 
         primalHeuristic();
+        /*
+        std::vector<int> solution;
+        solution.resize(getNVar());
+        BiqSolution* biqSol = new BiqSolution( this, solution, -1074);
+        broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -1074);
+        */
         return false;
     }
+
     bool bRet = false;
     int bestVal = static_cast<int>(broker()->getIncumbentValue());
+    int pastBestVal = getPastBest();
     if(max_problem_)
     {
         bestVal = -bestVal;
@@ -2814,7 +2829,9 @@ bool BiqModel::pruneTest(double dBound)
     if(
         (
         (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
-        (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal)
+        (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal) ||
+        ( max_problem_ && hasPastBest() && static_cast<int>(floor(dBound)) <= pastBestVal) || 
+        (!max_problem_ && hasPastBest() && static_cast<int>(ceil(dBound))  >= pastBestVal)
         )
       )
     {

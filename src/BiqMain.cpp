@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <vector>
 
 #include "CoinError.hpp"
 #include "CoinTime.hpp"
@@ -15,6 +16,7 @@
 #endif
 
 #include "headers/BiqModel.h"
+#include "headers/BiqSolution.h"
 
 int main(int argc, char * argv[])
 {
@@ -38,6 +40,11 @@ int main(int argc, char * argv[])
     if (bSolutionProvided) {
         // if user provided a solution then add it to the knowledge
         // need to figure out how to recive a solution vector
+        // make a solution vector of 0s
+        std::vector<int> solution;
+        solution.resize(model.getNVar());
+        BiqSolution* biqSol = new BiqSolution( &model, solution, -1074);
+        broker.addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -1074);
     }
 
     broker.search(&model); 

@@ -31,7 +31,9 @@ private:
     BiqModel * model_;
     std::vector<BiqVarStatus> varStatus_;
     double dQuality_;
-    int    iBranchedOn_;
+    int iParentsBest_;
+    int iBranchedOn_;
+    bool bHasBest_;
     // Disable copy constructor
     BiqNodeDesc(BiqNodeDesc const & other);
     BiqNodeDesc & operator=(BiqNodeDesc const & rhs);
@@ -45,6 +47,12 @@ public:
     
     void setBranchedOn(int val){iBranchedOn_ = val;};
     int getBranchedOn(){return iBranchedOn_;}
+
+    void setParentsBest(int val){iParentsBest_ = val;};
+    int getParentsBest(){return iParentsBest_;}
+
+    void setHasBest(int val){bHasBest_ = val;};
+    bool getHasBest(){return bHasBest_;}
 
     virtual ~BiqNodeDesc();
 

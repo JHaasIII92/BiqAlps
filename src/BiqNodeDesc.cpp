@@ -10,7 +10,7 @@ dQuality_(0.0)
 {
     int nVar = model_->getNVar();
     varStatus_.resize(nVar, BiqVarFree);
-    //std::printf("BiqNodeDesc::BiqNodeDesc nVar: %d\n",nVar );
+    bHasBest_ = false;
 }
 
 BiqNodeDesc::BiqNodeDesc(BiqModel * model, std::vector<BiqVarStatus> & st) :
@@ -19,7 +19,7 @@ model_(model),
 varStatus_(st),
 dQuality_(0.0)
 {
-  //std::printf("BiqNodeDesc::BiqNodeDesc    size status: %ld\n", varStatus_.size());
+  bHasBest_ = false;
 }
 
 BiqNodeDesc::~BiqNodeDesc() 
@@ -67,22 +67,25 @@ AlpsReturnStatus BiqNodeDesc::encode(AlpsEncoded * encoded) const
   // easy part
   encoded->writeRep(dQuality_);
   encoded->writeRep(iBranchedOn_);
+  encoded->writeRep(iParentsBest_);
+  encoded->writeRep(bHasBest_);
   // tricky
   encoded->writeRep(sizeStatus);
   encoded->writeRep(ipStatus,sizeStatus);
   return AlpsReturnStatusOk;
 }
 
+
 /// Unpack fields from the given #AlpsEncoded object.
 AlpsReturnStatus BiqNodeDesc::decodeToSelf(AlpsEncoded & encoded) 
 {
-  //std::printf("BiqNodeDesc::decodeToSelf\n");
   int *ipStatus = NULL;
   int sizeStatus;
 
   encoded.readRep(dQuality_);
   encoded.readRep(iBranchedOn_);
-
+  encoded.readRep(iParentsBest_);
+  encoded.readRep(bHasBest_);
   encoded.readRep(sizeStatus);
   //std::printf("decodeToSelf size status: %d\n",sizeStatus);
   encoded.readRep(ipStatus,sizeStatus);

@@ -100,6 +100,11 @@ private:
     int nIWORK_;
     int M_;
 
+    // past knowlage
+    int iPastBest_;
+    bool bHasPastBest_;
+
+    // storage space
     std::vector<int> viSolution_1_;
     std::vector<int> viSolution_2_;
 
@@ -125,8 +130,15 @@ public:
      return (new BiqTreeNode(this));
     }
 
+    void setPastBest(int iPastBest) {iPastBest_ = iPastBest;};
+    int getPastBest() {return iPastBest_;};
+ 
+    void setHasPastBest(bool bHasPastBest) {bHasPastBest_ = bHasPastBest;};
+    bool hasPastBest() {return bHasPastBest_;};
+
     inline int getNVar() const { return nVar_;}
     inline void setNVar( int nVar) { nVar_ = nVar;}
+
     double GetObjective(){return floor(f_);}
 
     inline bool isMax() const { return max_problem_;}
