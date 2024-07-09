@@ -6,7 +6,8 @@
 
 enum BIQ_Message
 {
-    BIQ_BOUND_END,
+    BIQ_BOUND_HEAD,
+    BIQ_BOUND_DATA,
     BIQ_DUMMY_END
 };
 

@@ -5,6 +5,7 @@
 #include "headers/BiqParams.h"
 #include "headers/BiqMessage.h"
 #include <cstring>
+#include <ctime>
 
 void BiqModel::InitModel() 
 {
@@ -1139,7 +1140,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 {
 
 
-
+    clock_t start = clock();
     // reset cuts
     Map_.clear();
     nIneq_ = 0;
@@ -1151,9 +1152,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     int nAdded = 0;
     int nSubtracted = 0;
     int nbitalpha = 0;
-
-    double dMinAllIneq;
-    
+    int nMaxFuncEvals = 0;    
     
     double dRetBound = 0.0;
     double dPrev_f = MAXFLOAT;
@@ -1233,6 +1232,10 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         iStatus = CallLBFGSB(dAlpha, dTol, nbit);
         // add nbits to the sum of function evaluations
         nFuncEvals += nbit;
+        if(nbit > nMaxFuncEvals)
+        {
+            nMaxFuncEvals = nbit;
+        }
         dRetBound = (max_problem_) ? floor(f_) : ceil(-f_);
         
         prune = pruneTest(dRetBound);
@@ -1244,7 +1247,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
         }
 
 
-        bestVal = static_cast<double>(broker()->getIncumbentValue());
+        bestVal = getBestVal();
         if(max_problem_)
         {
             bestVal = -bestVal;
@@ -1261,41 +1264,44 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
         if(!prune && !bGiveUp && bAddCuts)
         {
-            dMinAllIneq = UpdateInequalities(nAdded, nSubtracted);
+            UpdateInequalities(nAdded, nSubtracted);
         }
         else
         {
-            dMinAllIneq = NAN;
             nAdded = 0;
             nSubtracted = 0;
         }
 
         bStopSDPBound = (dAlpha == dMinAlpha) && nAdded == 0;
     
-    
 
-        //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
-        
-        
         // check if we are done
         if(prune || bGiveUp || bStopSDPBound || iStatus == -1 || nbit >= nMaxBFGSIter)
         {
-
+            clock_t end = clock();
+            double duration = double(end - start) / CLOCKS_PER_SEC;
             // Build the messsage to go to output
-            if(prune) std::strcpy(cExitReason,"Prune"); 
-            else if(bGiveUp) std::strcpy(cExitReason,"Give Up");
-            else if(bStopSDPBound) std::strcpy(cExitReason,"Stop SDP Bound");
-            else if(iStatus == -1) std::strcpy(cExitReason,"Status -1");
-            else if(nbit >= nMaxBFGSIter) std::strcpy(cExitReason,"nbit >= nMaxBFGSIter");
-            else std::strcpy(cExitReason,"Warning: No Reason!!");
-            
-            //BIQ_BOUND_END > "Bounding Complete:\n    Bound: %f\n    BestVal: %f\n    Reason: %s\n" 
-            handler_->message(BIQ_BOUND_END, messages_)
-                << dRetBound
-                << bestVal
-                << cExitReason
+            if(prune) std::strcpy(cExitReason,"0"); 
+            else if(bGiveUp) std::strcpy(cExitReason,"1");
+            else if(bStopSDPBound) std::strcpy(cExitReason,"2");
+            else if(iStatus == -1) std::strcpy(cExitReason,"3");
+            else if(nbit >= nMaxBFGSIter) std::strcpy(cExitReason,"4");
+            else std::strcpy(cExitReason,"5");
+
+            // BIQ_BOUND_DATA > "%f\t%d\t%d\t%d\t%s\t%f\t%f\t%d\t%d\t%d\t%f"   
+            handler_->message(BIQ_BOUND_DATA, messages_)
+                << duration
                 << i+1
-                << nIneq_;
+                << broker()->getTreeDepth()
+                << broker()->getNumNodesProcessed()
+                << cExitReason
+                << dRetBound
+                << dGap
+                << nFuncEvals
+                << nMaxFuncEvals
+                << nIneq_
+                << dAlpha;
+                
             break;
         }
         // update parameters
@@ -1314,13 +1320,6 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
     dRetBound = (max_problem_) ? f_ : -f_;
 
-    if(bPrintTable && bRoot)
-    {
-        //std::printf("Bounding Complete:\n    Bound = %f\n    %d Function Evaluations\n", dRetBound, nFuncEvals);
-    }
-    //PrintBoundingTable(i+1,nbit,nAdded,nSubtracted,dAlpha,dTol,dMinAllIneq, dGap);    
-    //exit(1);
-    
     return dRetBound;
 }
 
@@ -2802,10 +2801,49 @@ std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vb
     return vdFracSol_;
 }
 
+// This method wraps the brokers best with the desc best
+// This is used since there is a delay in MPI sharing knowlage and it helps with prune
+int BiqModel::getBestVal()
+{
+    int retBestVal;
+    int brokerBestVal = static_cast<int>(broker()->getIncumbentValue());
+    int pastBestVal = getPastBest();
+
+    bool bHasPastBest = hasPastBest();
+    bool bHasBrokerBest = broker()->hasKnowledge(AlpsKnowledgeTypeSolution);
+
+    if(max_problem_)
+    {
+        brokerBestVal = -brokerBestVal;
+    }
+
+    if(bHasPastBest && bHasBrokerBest && pastBestVal < brokerBestVal)
+    {
+        retBestVal = pastBestVal;
+    } 
+    else if(bHasPastBest && !bHasBrokerBest)
+    {
+        retBestVal = pastBestVal;
+    }
+    else
+    {
+        retBestVal = brokerBestVal;
+    }
+
+    return retBestVal;
+}
+
+// do we have a best??
+// This method wraps brokers best with desc best. This helps with MPI
+bool  BiqModel::hasBestVal()
+{
+    bool retHasBest = hasPastBest() || broker()->hasKnowledge(AlpsKnowledgeTypeSolution);
+    return retHasBest;
+}
 
 bool BiqModel::pruneTest(double dBound)
 {
-    if(hasPastBest() == false || broker()->hasKnowledge(AlpsKnowledgeTypeSolution) == false)
+    if(hasBestVal() == false)
     {
         // try primal 
         primalHeuristic();
@@ -2819,21 +2857,10 @@ bool BiqModel::pruneTest(double dBound)
     }
 
     bool bRet = false;
-    int bestVal = static_cast<int>(broker()->getIncumbentValue());
-    int pastBestVal = getPastBest();
-    if(max_problem_)
-    {
-        bestVal = -bestVal;
-    }
+    int bestVal = getBestVal();
     
-    if(
-        (
-        (max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
-        (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal) ||
-        ( max_problem_ && hasPastBest() && static_cast<int>(floor(dBound)) <= pastBestVal) || 
-        (!max_problem_ && hasPastBest() && static_cast<int>(ceil(dBound))  >= pastBestVal)
-        )
-      )
+    if((max_problem_ && static_cast<int>(floor(dBound)) <= bestVal) || 
+       (!max_problem_ && static_cast<int>(ceil(dBound))  >= bestVal))
     {
         //std::printf("%f %d prune",dBound, bestVal);
         bRet = true;

@@ -11,6 +11,7 @@
 #include "headers/BiqNodeDesc.h"
 #include "headers/BiqSolution.h"
 #include "headers/BiqModel.h"
+#include "headers/BiqParams.h"
 
 
 BiqTreeNode::BiqTreeNode(BiqModel * model)
@@ -69,7 +70,6 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     // pass desc knowlage of best to model for bounding
     if(bHasPastBestVal)
     {
-        std::printf("BiqTreeNode::process Has Past best = %d\n", pastBestVal);
         model->setHasPastBest(true);
         model->setPastBest(pastBestVal);
     }
@@ -83,49 +83,17 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     {
         if(biqVarStatus.at(i) != BiqVarFree) ++nFixed;
     }
-    // if(nFixed == model->getNVar)
 
     double valRelax = model->SDPbound(biqVarStatus, isRoot);
 
     std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
-    /*
-    std::printf("%d: Quality: %f\t", desc->getBranchedOn(), desc->getQuality());
-    for(auto &it: biqVarStatus)
-     {
-         switch(it) {
-             case BiqVarFixedToZero:
-                 std::printf("0 ");
-                 break;
-             case BiqVarFixedToOne:
-                 std::printf("1 ");
-                 break;
-             case BiqVarFree:
-                 std::printf("F ");
-                 break;
-             default:
-                 std::printf("E ");
-                 break;
-         }
-     }
-     std::printf("\n");
-    */
-    bestVal = static_cast<int>(broker()->getIncumbentValue());
-    //std::printf("bestval = %d\n", bestVal);
-    if(bestVal != -INFVAL)
-    {
-        bHasBestVal = true;
-    }
-    if(bmaxProblem)
-    {
-        bestVal = -bestVal;
-    }
-    //std::printf("BestVal = %d\n",bestVal);
+
+    bestVal = model->getBestVal();
+    bHasBestVal =  model->hasBestVal();
 
     if( bHasBestVal && (
         ( bmaxProblem && static_cast<int>(floor(valRelax)) <= bestVal) || 
-        (!bmaxProblem && static_cast<int>(ceil(valRelax))  >= bestVal) ||
-        ( bmaxProblem && bHasPastBestVal && static_cast<int>(floor(valRelax)) <= pastBestVal) || 
-        (!bmaxProblem && bHasPastBestVal && static_cast<int>(ceil(valRelax))  >= pastBestVal) ||
+        (!bmaxProblem && static_cast<int>(ceil(valRelax))  >= bestVal) || 
         nFixed ==  model->getNVar())
       )
     {
@@ -167,32 +135,14 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
         dQuality = -model->GetObjective();
     }
     
-    int pastBastVal = desc->getParentsBest();
-    int bestVal = static_cast<int>(broker()->getIncumbentValue());
-    if(model->isMax())
-    {
-	    bestVal = -bestVal;
-    }
+    int bestVal = model->getBestVal();
 
     //
-    bool bHasBestVal = broker()->hasKnowledge(AlpsKnowledgeTypeSolution);
+    bool bHasBrokerBestVal = broker()->hasKnowledge(AlpsKnowledgeTypeSolution);
     bool bHasPastBestVal = desc->getHasBest();
+    bool bHasBestVal = bHasBrokerBestVal || bHasPastBestVal;
 
-    // if past best is better best val should be set
-    if(bHasBestVal && bHasPastBestVal && pastBastVal < bestVal)
-    {
-        bestVal = pastBastVal; 
-    }
-    // if we have a past best but non from this run, but I do not think this is possible
-    else if(bHasPastBestVal && !bHasBestVal)
-    {
-        bestVal = pastBastVal; 
-        bHasBestVal = true;
-    }
-    else
-    {
-        // we have the best val so do nothing
-    }
+
 
 
     // compare models best with past best
@@ -202,7 +152,7 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     std::vector<BiqVarStatus> newStatiLeft = oldStati;
     std::vector<BiqVarStatus> newStatiRight = oldStati;
 
-    std::printf("BestVal: %d  Has Best: %d  x[%d] = 0\n",bestVal,bHasBestVal,branchOn_);
+    //std::printf("BestVal: %d  Has Best: %d  x[%d] = 0\n",bestVal,bHasBestVal,branchOn_);
 
     newStatiRight.at(branchOn_) = BiqVarFixedToZero;
     BiqNodeDesc *descRight = new BiqNodeDesc(model, newStatiRight);
@@ -229,9 +179,10 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
 
 void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<BiqVarStatus> varStatus)
 {
-    double dMaxVal = -INFINITY;
-    double dMinVal = INFINITY;
-    bCloseToZero_ = false;
+    BiqModel * model = dynamic_cast<BiqModel *>(broker()->getModel());
+    double dBestVal = -INFINITY;
+    int branchingStrategy = model->BiqPar()->entry(BiqParams::branchingStrategy);
+
     branchOn_ = 0;
 
    // branching stratagy...
@@ -240,31 +191,40 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
    for(size_t i = 0; i < fracSol.size(); ++i)
    {
         
-        /*
-        // Branch on the variable x[i] that has the least fractional value
-        //std::printf("%d =>\t %f \t %f\n", i, fracSol.at(i), fabs(0.5 - fracSol.at(i)));
-        if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) > dMaxVal)
+        if(branchingStrategy == CLOSEST_TO_ONE)
         {
-            branchOn_ = i;
-            dMaxVal = fabs(0.5 - fracSol.at(i));
+            // Branch on the variable x[i] that has the least fractional value
+            dBestVal = 0;
+            if(varStatus.at(i) == BiqVarFree && fracSol.at(i) > dBestVal)
+            {
+                branchOn_ = i;
+                dBestVal = fracSol.at(i);
+            }
         }
-        */
-        
-        
-        
-        // Branch on the variable x[i] that has the most fractional value
-        if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) < dMinVal)
+        else if(branchingStrategy == LEAST_FRACTIONAL)
         {
-            //std::printf("frac sol => %f\n", fracSol.at(i));
-            branchOn_ = i;
-            dMinVal = fabs(fracSol.at(i));
+            // Branch on the variable x[i] that has the least fractional value
+            dBestVal = 0.5;
+            if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) > dBestVal)
+            {
+                branchOn_ = i;
+                dBestVal = fabs(fracSol.at(i));
+            }
         }
-        
-        
-
+        else
+        {
+            // default MOST_FRACTIONAL
+            // Branch on the variable x[i] that has the most fractional value
+            dBestVal = 1;
+            if(varStatus.at(i) == BiqVarFree && fabs(0.5 - fracSol.at(i)) < dBestVal)
+            {
+                //std::printf("frac sol => %f\n", fracSol.at(i));
+                branchOn_ = i;
+                dBestVal = fabs(fracSol.at(i));
+            }
+        }
    }
    //printf("fracSol.at(%d) = %f\n", branchOn_, fracSol.at(branchOn_));
-   //exit(1);
 }
 
 
@@ -275,7 +235,6 @@ AlpsReturnStatus BiqTreeNode::encode(AlpsEncoded * encoded) const {
   
   // Biq part
   encoded->writeRep(branchOn_);
-  encoded->writeRep(bCloseToZero_);
   status = dynamic_cast<BiqNodeDesc*>(desc_)->encode(encoded);
   assert(status==AlpsReturnStatusOk);
 
@@ -288,7 +247,6 @@ AlpsReturnStatus BiqTreeNode::decodeToSelf(AlpsEncoded & encoded) {
     status = AlpsTreeNode::decodeToSelf(encoded);
     //std::printf("BiqTreeNode::decodeToSelf\n");
     encoded.readRep(branchOn_);
-    encoded.readRep(bCloseToZero_);
     status = dynamic_cast<BiqNodeDesc*>(desc_)->decodeToSelf(encoded);
     assert(status==AlpsReturnStatusOk);
     return status;

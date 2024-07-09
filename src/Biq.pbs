@@ -4,19 +4,24 @@
 #   more at https://latisresearch.umn.edu/creating-a-PBS-script
 #
 #The name this job 
-#PBS -N MC-250-8-128-wide-workers
-
+#PBS -N MC-500-1-128-8
 #PBS -j oe
 
 #select compute
-#PBS -l select=1:ncpus=128:mpiprocs=128:mem=128gb
-
+#
+#
+#PBS -l select=1:ncpus=128:mpiprocs=128:mem=512gb
+#
+#
 # Use the calculated time in the directive below
 #
-#PBS -l walltime=02:00:00
+#
+#PBS -l walltime=04:20:00
+#
 #
 # When to send a status email ("-m abe" sends e-mails at job abort, begin, and end)
 #PBS -m ae 
+#
 #
 # Custom user's email; edit and uncomment 
 # (remove the leading "#--" to activate)

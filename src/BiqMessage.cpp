@@ -20,7 +20,8 @@ typedef struct {
 // Curently BiqModel.cpp is the only place set up for messages
 static Biq_message us_english[]=
 {
-    {BIQ_BOUND_END,1,1, "Bounding Complete:\n\tBound: %f BestVal: %f\n\tReason: %s\n\tItterations %d\n\tN Cuts: %d"},
+    {BIQ_BOUND_HEAD,1,1, "Time    Itter    Reason    Bound    Gap    Total Evals    Max Evals    alpha"},
+    {BIQ_BOUND_DATA,2,1, "%f,%d,%d,%d,%s,%f,%f,%d,%d,%d,%f" },   
     {BIQ_DUMMY_END, 999999, 0, ""}
 };
 

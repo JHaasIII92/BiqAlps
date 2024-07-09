@@ -39,7 +39,9 @@ BiqParams::createKeywordList() {
     keys_.push_back(make_pair(std::string("Biq_nGoemanRuns"),
 			      AlpsParameter(AlpsIntPar, nGoemanRuns)));
     keys_.push_back(make_pair(std::string("Biq_nPrimalRuns"),
-			      AlpsParameter(AlpsIntPar, nPrimalRuns)));
+			      AlpsParameter(AlpsIntPar, nPrimalRuns))); 
+    keys_.push_back(make_pair(std::string("Biq_branchingStrategy"),
+			      AlpsParameter(AlpsIntPar, branchingStrategy)));
     //-------------------------------------------------------------------------
     // DoublePar
     keys_.push_back(make_pair(std::string("Biq_dInitAlpha"),
@@ -89,6 +91,8 @@ BiqParams::setDefaultEntries() {
     setEntry(nMaxAlphaIter, 50);
     setEntry(nGoemanRuns, 10);
     setEntry(nPrimalRuns, 1);
+    setEntry(branchingStrategy, MOST_FRACTIONAL);
+    
     //-------------------------------------------------------------------------
     // DoublePar
     setEntry(dInitAlpha, 1e-1);

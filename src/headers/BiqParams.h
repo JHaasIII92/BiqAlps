@@ -5,6 +5,12 @@
 #include "AlpsParameterBase.h"
 #include "stdio.h"
 
+// The three branching stratagies
+#define MOST_FRACTIONAL 0
+#define LEAST_FRACTIONAL 1
+#define CLOSEST_TO_ONE 2
+
+
 //#############################################################################
 //#############################################################################
 //** Parameters used in Biq. */
@@ -33,6 +39,7 @@ class BiqParams : public AlpsParameterSet {
       nMaxAlphaIter,
       nGoemanRuns,
       nPrimalRuns,
+      branchingStrategy,
       //
       endOfIntParams
   };
@@ -179,6 +186,7 @@ class BiqParams : public AlpsParameterSet {
       printf("Biq_nMaxAlphaIter %d\n", entry(nMaxAlphaIter));
       printf("Biq_nGoemanRuns %d\n", entry(nGoemanRuns));
       printf("Biq_nPrimalRuns %d\n", entry(nPrimalRuns));  
+      printf("Biq_branchingStrategy %d\n", entry(branchingStrategy)); 
       printf("Biq_dInitAlpha %.2e\n", entry(dInitAlpha));
       printf("Biq_dScaleAlpha %.2f\n", entry(dScaleAlpha));
       printf("Biq_dMinAlpha %.2e\n", entry(dMinAlpha));

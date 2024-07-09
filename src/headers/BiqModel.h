@@ -143,6 +143,9 @@ public:
 
     inline bool isMax() const { return max_problem_;}
     
+    bool hasBestVal();
+    int getBestVal();
+
     /// Get encode from AlpsModel.
     using AlpsKnowledge::encode;
     /// Encode this into the given AlpsEncoded object.
