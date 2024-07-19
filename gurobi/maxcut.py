@@ -32,12 +32,8 @@ else:
     print('Defining the objective function...')
     obj = 0
     for i, j, val in data:
-        # Linear/quadratic form #
         obj += val*x[i-1]*(1 - x[j-1])
         obj += val*x[j-1]*(1 - x[i-1])
-        # Pure quadratic form #
-        #obj += val*x[i-1]*(x[i-1] - x[j-1])
-        #obj += val*x[j-1]*(x[j-1] - x[i-1])
     m.setObjective(obj, sense=grb.GRB.MAXIMIZE)
 
     # Optimize the Model
