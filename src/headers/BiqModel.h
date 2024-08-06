@@ -162,7 +162,14 @@ public:
 
     double GWheuristic(int nPlanes,  std::vector<BiqVarStatus> vbiqVarStatus);
     
+    int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
     
+    //double primalHeuristicKC();
+    void KCheuristic(std::vector<BiqVarStatus> vbiqVarStatus);
+    
+    
+    void NieveUpdateHeuristic(std::vector<BiqVarStatus> vbiqVarStatus);
+
     std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);
 
     virtual void readInstance(const char* dataFile);
@@ -234,8 +241,6 @@ private:
 
     void GetLinear(Sparse &sSource, std::vector<BiqVarStatus> vbiqVarStatus, int nFixed);
 
-    int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
-
     double UpdateInequalities(int &nAdded, int &nSubtracted);
 
     double GetViolatedCuts();
@@ -248,7 +253,7 @@ private:
 
     double EvalSolution(std::vector<int> & solution);
 
-    void UpdateSol(double dVal, std::vector<int> solution);
+    bool UpdateSol(double dVal, std::vector<int> solution);
 
     void freeData(int *& data);
 

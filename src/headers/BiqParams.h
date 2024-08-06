@@ -10,7 +10,9 @@
 #define LEAST_FRACTIONAL 1
 #define CLOSEST_TO_ONE 2
 
-
+#define BIQ_MAX_CUT    0 
+#define BIQ_K_CLUSTER  1
+#define BIQ_GENERIC    2
 //#############################################################################
 //#############################################################################
 //** Parameters used in Biq. */
@@ -23,7 +25,6 @@ class BiqParams : public AlpsParameterSet {
     bAddCuts,
     bScale,
     bSolutionProvided,
-
     //
     endOfBoolParams
   };
@@ -40,6 +41,7 @@ class BiqParams : public AlpsParameterSet {
       nGoemanRuns,
       nPrimalRuns,
       branchingStrategy,
+      ProblemType,
       //
       endOfIntParams
   };

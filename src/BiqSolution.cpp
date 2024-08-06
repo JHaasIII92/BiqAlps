@@ -32,6 +32,7 @@ AlpsReturnStatus decodeToSelf(AlpsEncoded & encoded)
 void BiqSolution::print(std::ostream& os) const 
 {
 
+// TODO add a exit reason 
   os << "BiqAlps Solution Report: " << std::endl;
   os << "Value: " << value_<< std::endl;
   int i = 1;
