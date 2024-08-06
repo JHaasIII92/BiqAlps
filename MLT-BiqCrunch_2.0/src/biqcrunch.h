@@ -35,7 +35,7 @@
 /*
  *  Maximum number of inequalities allowed to add
  */
-#define MaxNineqAdded 10000
+#define MaxNineqAdded 100000
 
 /*
  *  Constant numbers

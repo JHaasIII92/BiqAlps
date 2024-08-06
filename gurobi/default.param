@@ -1,0 +1,9 @@
+nbProcs = 32
+
+#cuts = 5000
+
+#nitermax = 100
+
+#root = 1
+
+time_limit = 600
