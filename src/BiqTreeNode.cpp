@@ -62,7 +62,7 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
     bmaxProblem = model->isMax();
     // get the 1, 0, free vector to pass to model
     const std::vector<BiqVarStatus> biqVarStatus = desc->getVarStati();
-    
+    const int BiqProbType = model->BiqPar()->entry(BiqParams::ProblemType);
     // get the best solution so far (for parallel, it is the incumbent)
     bestVal = static_cast<int>(broker()->getIncumbentValue());
     bHasBestVal = broker()->hasKnowledge(AlpsKnowledgeTypeSolution);
@@ -74,23 +74,32 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
         model->setPastBest(pastBestVal);
     }
 
+    // DEMO
+    //model->NieveUpdateHeuristic(biqVarStatus);
+
+    int nFixed = model->GetOffset(biqVarStatus);
+    
+    /*
+    if(nFixed%10==0 && isRoot == false)
+    {
+        SetRandomBranchingVariable(biqVarStatus);
+        setStatus(AlpsNodeStatusPregnant);
+        return bFoundSolution;
+    }
+    */
     // build sub prob
     model->CreateSubProblem(biqVarStatus);
 
-    // check all variables ar fixed..
-    int nFixed = 0;
-    for(size_t i = 0; i < biqVarStatus.size();++i)
-    {
-        if(biqVarStatus.at(i) != BiqVarFree) ++nFixed;
-    }
-
     double valRelax = model->SDPbound(biqVarStatus, isRoot);
 
+    if(BiqProbType == BIQ_K_CLUSTER) model->KCheuristic(biqVarStatus);
     std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
+    // determine variable to branch on using vdFracSol
+    SetBranchingVariable(vdFracSol, biqVarStatus);
 
     bestVal = model->getBestVal();
     bHasBestVal =  model->hasBestVal();
-
+    //printf("bHasBestVal: %d   | bestVal: %d   <>   valRelax: %d\n",bHasBestValbestVal ,static_cast<int>(ceil(valRelax)));
     if( bHasBestVal && (
         ( bmaxProblem && static_cast<int>(floor(valRelax)) <= bestVal) || 
         (!bmaxProblem && static_cast<int>(ceil(valRelax))  >= bestVal) || 
@@ -122,9 +131,6 @@ std::vector< CoinTriple<AlpsNodeDesc*, AlpsNodeStatus, double> > BiqTreeNode::br
     BiqModel * model = dynamic_cast<BiqModel *>(broker()->getModel());
     
     const std::vector<BiqVarStatus> biqVarStatus = desc->getVarStati();
-    std::vector<double> vdFracSol = model->GetFractionalSolution(biqVarStatus);
-    // determine variable to branch on using vdFracSol
-    SetBranchingVariable(vdFracSol, biqVarStatus);
 
     if(model->isMax()) 
     {
@@ -226,6 +232,22 @@ void BiqTreeNode::SetBranchingVariable(std::vector<double> fracSol, std::vector<
    }
    //printf("fracSol.at(%d) = %f\n", branchOn_, fracSol.at(branchOn_));
 }
+
+void BiqTreeNode::SetRandomBranchingVariable(std::vector<BiqVarStatus> varStatus)
+{
+    branchOn_ = 0;
+    for(size_t i = 0; i < varStatus.size(); ++i)
+    {
+        if(varStatus.at(i) == BiqVarFree)
+        {
+            branchOn_ = i;
+            break;
+        }
+    }
+
+    return;
+}
+
 
 
 AlpsReturnStatus BiqTreeNode::encode(AlpsEncoded * encoded) const {

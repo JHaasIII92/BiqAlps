@@ -41,6 +41,7 @@ public:
 
   virtual double getQuality() const { return getObjValue(); }
  
+  std::vector<int> getSol() {return solution_; };
   /** Print out the solution.*/
   virtual void print(std::ostream& os) const;
     

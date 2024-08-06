@@ -108,6 +108,8 @@ private:
     BiqTreeNode & operator=(BiqTreeNode const &);
 
     void SetBranchingVariable(std::vector<double> fracSol, std::vector<BiqVarStatus> varStatus);
+    void SetRandomBranchingVariable(std::vector<BiqVarStatus> varStatus);
+
 };
 
 #endif

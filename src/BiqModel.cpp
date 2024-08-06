@@ -936,7 +936,7 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
 
     // For now this is init() with out the data set above
     // get the params needed for initilization 
-    //const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
+    const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
     const int nCuts = BiqPar_->entry(BiqParams::nCuts);
     const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
 
@@ -1181,8 +1181,9 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     const int nGoemanRuns = BiqPar_->entry(BiqParams::nGoemanRuns);
     const int nMaxIter = BiqPar_->entry(BiqParams::nMaxBoundingIter);
     const int nMinAdded = BiqPar_->entry(BiqParams::nMinCuts);
-    const int nMaxBFGSIter = BiqPar_->entry(BiqParams::nMaxBFGSIter);
+    int nMaxBFGSIter = BiqPar_->entry(BiqParams::nMaxBFGSIter);
     const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
+
 
     double dAlpha = BiqPar_->entry(BiqParams::dInitAlpha);
     double dTol = BiqPar_->entry(BiqParams::dInitTol);
@@ -1191,22 +1192,8 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     //int len_y = mA_ + mB_ + nIneq_;
     int len_y = mA_ + mB_ + MaxNineqAdded;
     int nHeurRuns = nGoemanRuns*nVar_;
-    /*
-    std::printf("\n");
-    std::printf("SDPbound started\n");
     
-    std::printf("    bRoot = %d\n", bRoot);
-    for(int i=0; i < nVar_; ++i)
-    {
-        if(vbiqVarStatus.at(i) != BiqVarStatus::BiqVarFree)
-        {
-            std::printf("vbiqVarStatus[%d] = %d\n", i, vbiqVarStatus.at(i));
-        }
-    }
-    */
-    
-
-
+    int iTreeDepth = GetOffset(vbiqVarStatus);
     // 
     if(nVar_sub_ == 0)
     {
@@ -1248,10 +1235,6 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
 
 
         bestVal = getBestVal();
-        if(max_problem_)
-        {
-            bestVal = -bestVal;
-        }
 
         dGap = fabs(bestVal - dRetBound);
 
@@ -1292,7 +1275,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
             handler_->message(BIQ_BOUND_DATA, messages_)
                 << duration
                 << i+1
-                << broker()->getTreeDepth()
+                << iTreeDepth
                 << broker()->getNumNodesProcessed()
                 << cExitReason
                 << dRetBound
@@ -2467,6 +2450,7 @@ double BiqModel::EvalSolution(std::vector<int> & solution)
     {
         dRetSol = -dRetSol;
     }
+
     return dRetSol;
 }
 
@@ -2572,14 +2556,14 @@ double BiqModel::primalHeuristic()
             }
             if(isFeasibleSolution(viSolution_1_))
             {
-                std::printf("BiqModel::primalHeuristic() Hit one!!\n");
+                //std::printf("BiqModel::primalHeuristic() Hit one!!\n");
                 dTempEval = EvalSolution(viSolution_1_);
                 UpdateSol(dTempEval, viSolution_1_);
                 bStop = true;
             }
             if(!bStop && isFeasibleSolution(viSolution_2_))
             {
-                std::printf("BiqModel::primalHeuristic() Hit one!!\n");
+                //std::printf("BiqModel::primalHeuristic() Hit one!!\n");
                 dTempEval = EvalSolution(viSolution_2_);
                 UpdateSol(dTempEval, viSolution_2_);
                 bStop = true;
@@ -2588,6 +2572,136 @@ double BiqModel::primalHeuristic()
     }
     
     return dRet;
+}
+
+
+void BiqModel::KCheuristic(std::vector<BiqVarStatus> vbiqVarStatus)
+{
+    // A Gready Heuristic used to find
+    // Solutions to K Cluster Problems
+
+    double dTempEval;
+
+    double MaxFracSol;
+    int posFix; 
+
+    int K_Clusters = b_[0]/2;
+    int nFixedToOne = 0;
+    int K_diff;
+
+
+    // get fractional solution for fixing
+    std::vector<double> fracSol = GetFractionalSolution(vbiqVarStatus);
+
+    // initilize a solution vector
+    for(auto i = 0; i < nVar_; ++i)
+    {
+        if(vbiqVarStatus.at(i) == BiqVarFixedToOne)
+        {
+            viSolution_1_.at(i) = 1;
+            ++nFixedToOne;
+        }
+        else
+        {
+            viSolution_1_.at(i) = 0;
+        }
+    }
+    viSolution_1_.at(nVar_) = 0; 
+    K_diff = K_Clusters - nFixedToOne;
+
+    // for each remaining unfixed
+    for(int k = 0; k < K_diff; ++k)
+    {
+        MaxFracSol = -1.0;
+        posFix = -1;
+        for(int i = 0; i < nVar_; ++i)
+        {
+            if( vbiqVarStatus.at(i) == BiqVarFree &&
+                viSolution_1_.at(i) == 0
+                )
+                //printf("fracSol = %f  status = %d    solVal = %d\n", fracSol.at(i),vbiqVarStatus.at(i), viSolution_1_.at(i));
+            if(
+                vbiqVarStatus.at(i) == BiqVarFree &&
+                fracSol.at(i) > MaxFracSol &&
+                viSolution_1_.at(i) == 0
+               )
+               {
+                    posFix = i;
+                    MaxFracSol = fracSol.at(i);
+               }
+        }
+        //printf("MaxFracSol = %f\n", MaxFracSol);
+        assert(posFix >= 0);
+        viSolution_1_.at(posFix) = 1;
+    }
+    
+    
+    //
+#ifdef DEBUG
+   int s = 0;
+    for(auto &it: viSolution_1_)
+    {
+        s += it;
+    }
+    //printf("s = %d\n",s);
+    assert(s == K_Clusters);
+    assert(isFeasibleSolution(viSolution_1_));
+#endif
+
+
+    // should assert the we have k fixed
+    if(isFeasibleSolution(viSolution_1_))
+    {
+        dTempEval = EvalSolution(viSolution_1_);
+
+        //=if(dTempEval >= 255) printf("KC dTempEval = %f\n", dTempEval);
+        UpdateSol(dTempEval, viSolution_1_);
+    }
+
+}
+
+void BiqModel::NieveUpdateHeuristic(std::vector<BiqVarStatus> vbiqVarStatus)
+{
+    double dTempEval;
+
+    // Bail if there is no known solutions
+    if(broker()->hasKnowledge(AlpsKnowledgeTypeSolution) == false) return;
+    // from the broker get the data stored from update solution
+    std::pair< AlpsKnowledge *, double > bestSolPair = broker()->getBestKnowledge(AlpsKnowledgeTypeSolution);
+    // cast the AlpsKnowledge pointer to a BiqSolution pointer
+    BiqSolution* pBestSol = static_cast<BiqSolution*>(bestSolPair.first);
+    
+    viSolution_1_ = pBestSol->getSol();
+    //printf("viSolution_1_.size():  %d     vbiqVarStatus.size():  %d\n", viSolution_1_, vbiqVarStatus);
+    //assert(viSolution_1_.size() == vbiqVarStatus.size());
+    // fix variables according to var status
+    for(size_t i = 0; i < nVar_; ++i)
+    {
+        if(vbiqVarStatus.at(i) == BiqVarFixedToOne)
+        {
+            viSolution_1_.at(i) = 1;
+        } 
+        else if(vbiqVarStatus.at(i) == BiqVarFixedToZero)
+        {
+            viSolution_1_.at(i) = 0;
+        }
+        else
+        {
+            // Do Nothing
+        }
+    }
+    // if feasible try to update solution
+
+    // should assert the we have k fixed
+    if(isFeasibleSolution(viSolution_1_))
+    {
+        dTempEval = EvalSolution(viSolution_1_);
+
+        printf("NieveUpdateHeuristic dTempEval = %f\n", dTempEval);
+        if(UpdateSol(dTempEval, viSolution_1_)) printf("::NieveUpdateHeuristic got a best!!!");
+    }
+
+    return;
 }
 
 double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatus)
@@ -2615,22 +2729,9 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
 
     viSolution_1_.at(nVar_) = 1;
     viSolution_2_.at(nVar_) = 1;
-    
-    dBestVal = static_cast<int>(broker()->getIncumbentValue());
-    
-    if(max_problem_)
-    {
-        dBestVal = -dBestVal;
-    }
-
-    if(dBestVal == INFVAL)
-    {
-        bHasBest = false;
-    }
-
-
-
-
+        
+    dBestVal = getBestVal();
+    bHasBest = hasBestVal();
 
     for(int k = 0; k < nPlanes; ++k)
     {
@@ -2707,23 +2808,17 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
         if(isFeasibleSolution(viSolution_1_))
         {
             dTempEval = EvalSolution(viSolution_1_);
-            //std::printf("%f\n", dTempEval);
-            if(!bHasBest || dTempEval > dBestVal)
-            {
-                dBestVal = dTempEval;
-                UpdateSol(dTempEval, viSolution_1_);
-            }
+            dBestVal = dTempEval;
+            //printf("GW dTempEval = %f\n", dTempEval);
+            UpdateSol(dTempEval, viSolution_1_);
         }
 
         if(isFeasibleSolution(viSolution_2_))
         {
             dTempEval = EvalSolution(viSolution_2_);
-            //std::printf("%f\n", dTempEval);
-            if(!bHasBest || dTempEval > dBestVal)
-            {
-                dBestVal = dTempEval;
-                UpdateSol(dTempEval, viSolution_2_);
-            }
+            dBestVal = dTempEval;
+            //printf("GW dTempEval = %f\n", dTempEval);
+            UpdateSol(dTempEval, viSolution_2_);
         }
 
       
@@ -2736,45 +2831,43 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
     return dRetBest;
 }
 
-void BiqModel::UpdateSol(double dVal, std::vector<int> solution)
+bool BiqModel::UpdateSol(double dVal, std::vector<int> solution)
 {
 
     double bestVal = 0;
     bool bForceAdd = false;
-
-    if(broker()->hasKnowledge(AlpsKnowledgeTypeSolution))
+    bool bRet = false; 
+    if(hasBestVal())
     {
-        bestVal = static_cast<double>(broker()->getIncumbentValue());
+        bestVal = getBestVal();
     }
     else
     {
         bForceAdd = true;
     }
     
-    // The quality of a solution is the negative of the objective value
-    // since Alps consideres sols with lower quality values better.
-    if(max_problem_)
-    {
-        bestVal = -bestVal;
-    }
     
     //printf("Val => %f  Beta => %f test => %d\n",dVal, bestVal, dVal < bestVal);
     BiqSolution* biqSol = new BiqSolution( this, solution, dVal);
     if(max_problem_ && (dVal > bestVal || bForceAdd))
     {
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dVal);
+        bRet = true;
         //printf("Beta updated => %f\n",-dVal);
     }
     else if(!max_problem_ && (dVal < bestVal || bForceAdd))
     {     
         
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dVal);
+        bRet = true;
         //printf("Val => %f  Beta => %f Force? => %d \n",dVal, bestVal, bForceAdd);
     }   
     else
     {
         /* do nothing*/
     }
+
+    return bRet;
 }
 
 std::vector<double> BiqModel::GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus)
@@ -2816,9 +2909,13 @@ int BiqModel::getBestVal()
     {
         brokerBestVal = -brokerBestVal;
     }
+    
 
-    if(bHasPastBest && bHasBrokerBest && pastBestVal < brokerBestVal)
+    
+
+    if(max_problem_ && bHasPastBest && bHasBrokerBest && pastBestVal < brokerBestVal)
     {
+        
         retBestVal = pastBestVal;
     } 
     else if(bHasPastBest && !bHasBrokerBest)
@@ -2829,6 +2926,10 @@ int BiqModel::getBestVal()
     {
         retBestVal = brokerBestVal;
     }
+
+    
+
+    //printf("bHasPastBest: %d  bHasBrokerBest: %d | brokerBestVal: %d   <>   pastBestVal: %d   <>   retBestVal: %d\n",bHasPastBest, bHasBrokerBest, brokerBestVal ,pastBestVal, retBestVal);
 
     return retBestVal;
 }

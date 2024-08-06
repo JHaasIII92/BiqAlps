@@ -42,6 +42,8 @@ BiqParams::createKeywordList() {
 			      AlpsParameter(AlpsIntPar, nPrimalRuns))); 
     keys_.push_back(make_pair(std::string("Biq_branchingStrategy"),
 			      AlpsParameter(AlpsIntPar, branchingStrategy)));
+    keys_.push_back(make_pair(std::string("Biq_ProblemType"),
+                  AlpsParameter(AlpsIntPar, ProblemType)));
     //-------------------------------------------------------------------------
     // DoublePar
     keys_.push_back(make_pair(std::string("Biq_dInitAlpha"),
@@ -92,6 +94,7 @@ BiqParams::setDefaultEntries() {
     setEntry(nGoemanRuns, 10);
     setEntry(nPrimalRuns, 1);
     setEntry(branchingStrategy, MOST_FRACTIONAL);
+    setEntry(ProblemType, BIQ_MAX_CUT);
     
     //-------------------------------------------------------------------------
     // DoublePar
