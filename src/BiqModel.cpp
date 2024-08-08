@@ -11,6 +11,7 @@ void BiqModel::InitModel()
 {
     // get the params needed for initilization 
     const bool bProdCons = BiqPar_->entry(BiqParams::bAddProductConstraints);
+    const bool bSolutionProvided = BiqPar_->entry(BiqParams::bSolutionProvided);
     const int nCuts = BiqPar_->entry(BiqParams::nCuts);
     const int MaxNineqAdded = BiqPar_->entry(BiqParams::MaxNineqAdded);
 
@@ -1170,7 +1171,7 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     //if (bRoot) BiqPar_->print();
 
     const bool bAddCuts = BiqPar_->entry(BiqParams::bAddCuts);
-
+    const bool  bSolutionProvided = BiqPar_->entry(BiqParams::bSolutionProvided);
     const double dMinAlpha = BiqPar_->entry(BiqParams::dMinAlpha);
     const double dMinTol = BiqPar_->entry(BiqParams::dMinTol);
     const double dScaleAlpha = BiqPar_->entry(BiqParams::dScaleAlpha);
@@ -1194,6 +1195,12 @@ double BiqModel::SDPbound(std::vector<BiqVarStatus> vbiqVarStatus , bool bRoot)
     int nHeurRuns = nGoemanRuns*nVar_;
     
     int iTreeDepth = GetOffset(vbiqVarStatus);
+
+    if(bSolutionProvided)
+    {
+        addProvidedSol();
+    }
+
     // 
     if(nVar_sub_ == 0)
     {
@@ -2969,4 +2976,18 @@ bool BiqModel::pruneTest(double dBound)
     //std::printf("bRet = %d \n",bRet);
     
     return bRet;
+}
+
+void BiqModel::addProvidedSol()
+{
+    // add the soluttion that is provided by the .par file
+    double dSolutionValue = BiqPar()->entry(BiqParams::dSolutionValue);
+    for(auto &it: viSolution_1_)
+    {
+        it = 0;
+    }
+
+    BiqSolution* biqSol = new BiqSolution( this, viSolution_1_, dSolutionValue);
+    broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dSolutionValue);
+
 }

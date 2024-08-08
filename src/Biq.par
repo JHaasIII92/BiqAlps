@@ -1,13 +1,13 @@
 Biq_bAddCuts 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_bScale 1 # [default: 1] 1: add constraints, 0: don't.
 
-Biq_bSolutionProvided 0 # [default: 0]
-Biq_dSolutionValue 0.0 # [default: 0.0]
+Biq_bSolutionProvided 1 # [default: 0]
+Biq_dSolutionValue -35726.0 # [default: 0.0]
 
 Biq_dGapCuts -5e-2 # [default: -5e-2]
 Biq_dInitAlpha 1e0 # [default: 1e-1]
 Biq_dInitTol 1e-1 # [default: 1e-1]
-Biq_dMinAlpha 5e-5 # [default: 5e-5]
+Biq_dMinAlpha 1e-4 # [default: 5e-5]
 Biq_dMinTol 1e-2 # [default: 1e-2]
 Biq_dScaleAlpha 0.5 # [default: 0.5]
 Biq_dScaleTol 0.95 # [default: 0.95]
@@ -17,7 +17,7 @@ Biq_nCuts 2000 # [default: 500]
 Biq_nGoemanRuns 1  # [default: 10]
 Biq_nPrimalRuns 1 # [default: 1]
 Biq_nMaxAlphaIter 50 # [default: 50]
-Biq_nMaxBFGSIter 1000 # [default: 2000]
+Biq_nMaxBFGSIter 500 # [default: 2000]
 Biq_nMaxBoundingIter 100 # [default: 100]
 Biq_nMinBoundingIter 12 # [default: 12]
 Biq_nMinCuts 50 # [default: 50]

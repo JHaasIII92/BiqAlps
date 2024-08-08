@@ -268,6 +268,8 @@ private:
     bool pruneTest(double bound);
 
     void testEncodeDecode();
+
+    void addProvidedSol();
 };
 
 #endif
