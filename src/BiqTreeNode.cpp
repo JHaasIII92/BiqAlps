@@ -76,6 +76,8 @@ int BiqTreeNode::process(bool isRoot, bool rampUp)
 
     // DEMO
     //model->NieveUpdateHeuristic(biqVarStatus);
+    model->GreedyUQBO();
+    exit(1);
 
     int nFixed = model->GetOffset(biqVarStatus);
     

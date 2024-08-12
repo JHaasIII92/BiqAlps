@@ -80,6 +80,10 @@ void BiqModel::InitModel()
 
     vdFracSol_.resize(nVar_);
 
+    vdGainsZero_.resize(nVar_);
+    vdGainsOne_.resize(nVar_);
+    vbGreedyIndex_.resize(nVar_);
+
 #ifdef DEBUG
     testEncodeDecode();
 #endif
@@ -994,6 +998,10 @@ AlpsReturnStatus BiqModel::decodeToSelf(AlpsEncoded & encoded)
     viSolution_2_.resize(N_);
 
     vdFracSol_.resize(nVar_);
+
+    vdGainsZero_.resize(nVar_);
+    vdGainsOne_.resize(nVar_);
+    vbGreedyIndex_.resize(nVar_);
 
     return status;
 }
@@ -2428,12 +2436,13 @@ double BiqModel::EvalSolution(std::vector<int> & solution)
     double dRetSol = 0.0;
     int i, j;
     double dVal;
-
+    
     for(auto &it: Qs_)
     {
         i = it.i_;
         j = it.j_;
         dVal = it.dVal_;
+        
         //printf("solution[%d] = %d \t solution[%d] = %d\n", i, solution.at(i), j, solution.at(j));
         if(i < nVar_ && j < nVar_)
         {
@@ -2457,7 +2466,7 @@ double BiqModel::EvalSolution(std::vector<int> & solution)
     {
         dRetSol = -dRetSol;
     }
-
+    printf("dRetSol: %f\n",dRetSol);    
     return dRetSol;
 }
 
@@ -2991,3 +3000,89 @@ void BiqModel::addProvidedSol()
     broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, dSolutionValue);
 
 }
+
+
+void BiqModel::GreedyUQBO()
+{
+
+    const bool  bSolutionProvided = BiqPar()->entry(BiqParams::bSolutionProvided);
+    const double dSolutionValue = BiqPar()->entry(BiqParams::dSolutionValue);
+
+    double dGreedySolVal;
+    double dGreedyGain;
+    double dGainTmp;
+
+    int indexBest;
+    int bestVal;
+    int tmpPos;
+    int tmpIndex;
+
+    GreedyGainsHeap ggHeap;
+    GreedyGainsMap ggMap;
+    GreedyGains ggBest = GreedyGains(); 
+    
+    // fill the compliment with 0 .. nVar_ 
+    for(int i = 0; i < nVar_; ++i)
+    {
+        dGainTmp = 2*Q_[i + nVar_*nVar_];
+        ggMap.insert({i, GreedyGains(i,-dGainTmp,dGainTmp)});
+    }
+
+ 
+    for(int i = 0; i < nVar_; ++i)
+    {
+        // place gains in a heap
+        for(auto &it: ggMap)
+        {
+            ggHeap.push(it.second);
+        }
+
+        // get the best gain
+        ggBest = ggHeap.top();
+
+        // store index of best gain in var 
+        indexBest = ggBest.index_;
+
+        // now the ggQueue is sorted get the best gain
+        bestVal = ggBest.BestFix(isMax());
+
+        //(bestVal == 1) ? dGreedyGain = ggBest.gainOne_ : dGreedyGain = ggBest.gainZero_;
+        //printf("index: %d \t %d Val: %f\n",indexBest,bestVal,dGreedyGain);
+        
+        // place best in solution
+        viSolution_1_.at(indexBest) = bestVal;
+
+        // remove best from the map
+        ggMap.erase(indexBest);
+
+        // Update all the gains
+        for(auto &it: ggMap)
+        {   
+            dGainTmp = 2*(2*viSolution_1_[indexBest] - 1)*Q_[it.second.index_ + indexBest*nVar_];
+
+            it.second.gainOne_ += dGainTmp;
+            it.second.gainZero_ -= dGainTmp;
+        }
+
+        // clear out the heap
+        while (!ggHeap.empty())
+        {
+            ggHeap.pop();
+        }
+        
+        //exit(1);
+    }
+
+    
+    dGreedySolVal = EvalSolution(viSolution_1_);
+    printf("nVar: %d Greed Heurisstic found solution with value: %f\t",nVar_,dGreedySolVal);
+    for(auto &it: viSolution_1_) printf("%d ", it);
+    
+    if(bSolutionProvided)
+    {
+        printf("Gap: %f", abs(dSolutionValue - dGreedySolVal)/dSolutionValue);
+
+    }
+}
+    
+

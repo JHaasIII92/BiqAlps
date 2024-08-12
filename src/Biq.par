@@ -2,7 +2,7 @@ Biq_bAddCuts 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_bScale 1 # [default: 1] 1: add constraints, 0: don't.
 
 Biq_bSolutionProvided 1 # [default: 0]
-Biq_dSolutionValue -35726.0 # [default: 0.0]
+Biq_dSolutionValue 536 # [default: 0.0]
 
 Biq_dGapCuts -5e-2 # [default: -5e-2]
 Biq_dInitAlpha 1e0 # [default: 1e-1]
@@ -25,7 +25,7 @@ Biq_MaxNineqAdded 10000 # [default: 10000]
 Biq_branchingStrategy 0 # [default: 0] 0: MOST_FRACTIONAL, 1: LEAST_FRACTIONAL, 2: CLOSEST_TO_ONE
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
 
-Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp250-8.sparse.bc
+Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/g05_60.0.bc
 
 Alps_processNum 128
 Alps_hubNum 28

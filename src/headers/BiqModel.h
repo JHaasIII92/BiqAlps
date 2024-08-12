@@ -15,6 +15,7 @@
 #include <utility>
 #include <list>
 #include <map>
+#include <set>
 #include <unordered_map>
 #include <tuple>
 #include <queue>
@@ -110,6 +111,11 @@ private:
 
     std::vector<double> vdFracSol_;
 
+    // Greedy Heuristic data QUBO
+    std::vector<double> vdGainsZero_;
+    std::vector<double> vdGainsOne_;
+    std::vector<bool> vbGreedyIndex_;
+    
     BiqModel(const BiqModel&);
     BiqModel& operator=(const BiqModel&);
 
@@ -170,6 +176,7 @@ public:
     
     void NieveUpdateHeuristic(std::vector<BiqVarStatus> vbiqVarStatus);
 
+    void GreedyUQBO();
     std::vector<double> GetFractionalSolution(std::vector<BiqVarStatus> vbiqVarStatus);
 
     virtual void readInstance(const char* dataFile);
