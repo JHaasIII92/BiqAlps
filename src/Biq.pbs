@@ -4,7 +4,7 @@
 #   more at https://latisresearch.umn.edu/creating-a-PBS-script
 #
 #The name this job 
-#PBS -N BQP-250-8
+#PBS -N bqp250-8
 #PBS -j oe
 
 #select compute

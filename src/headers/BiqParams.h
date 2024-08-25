@@ -25,6 +25,8 @@ class BiqParams : public AlpsParameterSet {
     bAddCuts,
     bScale,
     bSolutionProvided,
+    bOneOptSearch,
+    bRunWide,
     //
     endOfBoolParams
   };
@@ -42,6 +44,7 @@ class BiqParams : public AlpsParameterSet {
       nPrimalRuns,
       branchingStrategy,
       ProblemType,
+      nGreedyRootRuns,
       //
       endOfIntParams
   };

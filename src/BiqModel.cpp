@@ -2466,7 +2466,7 @@ double BiqModel::EvalSolution(std::vector<int> & solution)
     {
         dRetSol = -dRetSol;
     }
-    printf("dRetSol: %f\n",dRetSol);    
+
     return dRetSol;
 }
 
@@ -2738,6 +2738,7 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
     int subN = nVar_sub_+1;
 
     bool bHasBest;
+    const bool bOneOptSearch = BiqPar_->entry(BiqParams::bOneOptSearch);
 
     std::vector<double> hyperPlane;
 
@@ -2826,7 +2827,11 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
             dTempEval = EvalSolution(viSolution_1_);
             dBestVal = dTempEval;
             //printf("GW dTempEval = %f\n", dTempEval);
-            UpdateSol(dTempEval, viSolution_1_);
+            if(UpdateSol(dTempEval, viSolution_1_) && bOneOptSearch)
+            {
+                OneOptLocalSearch(viSolution_1_);
+            }
+            
         }
 
         if(isFeasibleSolution(viSolution_2_))
@@ -2834,7 +2839,11 @@ double BiqModel::GWheuristic(int nPlanes, std::vector<BiqVarStatus> vbiqVarStatu
             dTempEval = EvalSolution(viSolution_2_);
             dBestVal = dTempEval;
             //printf("GW dTempEval = %f\n", dTempEval);
-            UpdateSol(dTempEval, viSolution_2_);
+            if(UpdateSol(dTempEval, viSolution_2_) && bOneOptSearch)
+            {
+                OneOptLocalSearch(viSolution_2_);
+            }
+            
         }
 
       
@@ -2867,6 +2876,7 @@ bool BiqModel::UpdateSol(double dVal, std::vector<int> solution)
     BiqSolution* biqSol = new BiqSolution( this, solution, dVal);
     if(max_problem_ && (dVal > bestVal || bForceAdd))
     {
+        
         broker()->addKnowledge(AlpsKnowledgeTypeSolution, biqSol, -dVal);
         bRet = true;
         //printf("Beta updated => %f\n",-dVal);
@@ -3011,78 +3021,224 @@ void BiqModel::GreedyUQBO()
     double dGreedySolVal;
     double dGreedyGain;
     double dGainTmp;
+    double dGainSumTmp;
+    double dBestGain;
 
     int indexBest;
     int bestVal;
     int tmpPos;
     int tmpIndex;
+    
+
 
     GreedyGainsHeap ggHeap;
     GreedyGainsMap ggMap;
     GreedyGains ggBest = GreedyGains(); 
     
-    // fill the compliment with 0 .. nVar_ 
-    for(int i = 0; i < nVar_; ++i)
-    {
-        dGainTmp = 2*Q_[i + nVar_*nVar_];
-        ggMap.insert({i, GreedyGains(i,-dGainTmp,dGainTmp)});
-    }
+    std::vector<int> IndexAdded; 
 
- 
-    for(int i = 0; i < nVar_; ++i)
-    {
-        // place gains in a heap
-        for(auto &it: ggMap)
-        {
-            ggHeap.push(it.second);
+    // print out
+    //printf("Randomized Greedy Algo: \n");
+
+
+        viSolution_1_.at(nVar_) = 1;
+        // fill the compliment with 0 .. nVar_ 
+        for(int i = 0; i < nVar_; ++i)
+        {               
+            ggMap.insert({i, GreedyGains(i,0,0)});
         }
 
-        // get the best gain
-        ggBest = ggHeap.top();
-
-        // store index of best gain in var 
-        indexBest = ggBest.index_;
-
-        // now the ggQueue is sorted get the best gain
-        bestVal = ggBest.BestFix(isMax());
-
-        //(bestVal == 1) ? dGreedyGain = ggBest.gainOne_ : dGreedyGain = ggBest.gainZero_;
-        //printf("index: %d \t %d Val: %f\n",indexBest,bestVal,dGreedyGain);
-        
+        // pick a random first var
+        indexBest = rand() % nVar_;
+        bestVal =  rand() % 2;
         // place best in solution
         viSolution_1_.at(indexBest) = bestVal;
-
+        IndexAdded.push_back(indexBest);
         // remove best from the map
         ggMap.erase(indexBest);
 
-        // Update all the gains
-        for(auto &it: ggMap)
-        {   
-            dGainTmp = 2*(2*viSolution_1_[indexBest] - 1)*Q_[it.second.index_ + indexBest*nVar_];
-
-            it.second.gainOne_ += dGainTmp;
-            it.second.gainZero_ -= dGainTmp;
-        }
-
-        // clear out the heap
-        while (!ggHeap.empty())
+        for(int i = 0; i < nVar_ - 1; ++i)
         {
-            ggHeap.pop();
-        }
+
+            dBestGain =-MAXFLOAT;
+            indexBest = -1;
+            bestVal = -1;
+            // compute the gains 
+            for(auto &it: ggMap)
+            {   
+                it.second.gainOne_ = 0;
+                it.second.gainZero_ = 0;
+                for(auto &j: IndexAdded)
+                {
+                    
+                    it.second.gainOne_ += (2*viSolution_1_[j] - 1)*Q_[it.second.index_ + j*N_];
+                    it.second.gainZero_ += (2*viSolution_1_[j] - 1)*Q_[it.second.index_ + j*N_];
+                }
+
+                it.second.gainOne_ *= 2;
+                it.second.gainZero_ *= -2;
+
+
+                it.second.gainOne_ +=  Q_[it.second.index_ + it.second.index_ *N_] + 2*Q_[it.second.index_ + nVar_*N_];
+                it.second.gainZero_ +=  Q_[it.second.index_ + it.second.index_ *N_] - 2*Q_[it.second.index_ + nVar_*N_];
+                //printf("Gain 0: %f \t Gain 1: %f \n",it.second.gainOne_,it.second.gainZero_);
+                if(it.second.gainOne_ > dBestGain)
+                {
+                    dBestGain = it.second.gainOne_;
+                    indexBest = it.second.index_;
+                    bestVal = 1;
+                }
+                else if(it.second.gainZero_ > dBestGain)
+                {
+                    dBestGain = it.second.gainZero_;
+                    indexBest = it.second.index_;
+                    bestVal = 0;
+                }
+                else
+                {
+                    // do nothing ..
+                }
+            }
+
+            assert(dBestGain != -INFINITY || dBestGain != INFINITY);
+            assert(indexBest != -1);
+            assert(bestVal != -1);
+            
+            //printf("Index: %d \t Val: %d \t Gain: %f \n",indexBest,bestVal,dBestGain);
+            //(bestVal == 1) ? dGreedyGain = ggBest.gainOne_ : dGreedyGain = ggBest.gainZero_;
+            //printf("index: %d \t %d Val: %f\n",indexBest,bestVal,dGreedyGain);
         
-        //exit(1);
+            // place best in solution
+            viSolution_1_.at(indexBest) = bestVal;
+            IndexAdded.push_back(indexBest);
+            // remove best from the map
+            ggMap.erase(indexBest);
+        }
+
+        
+        dGreedySolVal = EvalSolution(viSolution_1_);
+        //printf("nVar: %d Greed Heurisstic found solution with value: %f\t",nVar_,dGreedySolVal);
+        //for(auto &it: viSolution_1_) printf("%d ", it);
+    
+        if(bSolutionProvided)
+        {
+            printf("Best Known: %f \t Gap: %f\n",dSolutionValue, abs(dSolutionValue - dGreedySolVal)/abs(dSolutionValue));
+        }
+
+        if(UpdateSol(dGreedySolVal, viSolution_1_))
+        {
+            printf("Greedy found new best: %f\n",dGreedySolVal);
+        }
+        OneOptLocalSearch(viSolution_1_);
+
+}
+
+
+void BiqModel::OneOptLocalSearch(std::vector<int>& vbiqSol)
+{
+
+    std::vector<double> vGain; 
+
+    double dTempSum;
+    double dBestGain; 
+    double dBegVal;
+    double dEndVal;
+    double dTempMult;
+
+    int iBestIndex;
+    int iPrevBest;
+    
+    bool bHasBetter;
+
+    // Initialize gains vector
+    vGain.resize(nVar_);
+
+    iPrevBest = iBestIndex;
+    bHasBetter = true;
+
+    iBestIndex = -1;
+    dBestGain = -MAXFLOAT;
+    for(int k = 0; k < nVar_; ++k)
+    {
+        dTempSum = 0.0;
+
+        // g_k = -2y_k y'Q_k + Qkk - 2yk
+        for(int i = 0; i <= nVar_; ++ i)
+        {
+            dTempSum += (2*vbiqSol.at(i) - 1)*Q_[i + k*N_];
+        }
+        dTempMult =  (vbiqSol.at(k) == 1) ?  -4: 4;
+        dTempSum *= dTempMult;
+        dTempSum += 4*Q_[k + k*N_];
+
+        vGain.at(k) = dTempSum;
+
+        if(vGain.at(k) > dBestGain)
+        {
+            dBestGain = vGain.at(k);
+            iBestIndex = k;
+        }
+
     }
 
-    
-    dGreedySolVal = EvalSolution(viSolution_1_);
-    printf("nVar: %d Greed Heurisstic found solution with value: %f\t",nVar_,dGreedySolVal);
-    for(auto &it: viSolution_1_) printf("%d ", it);
-    
-    if(bSolutionProvided)
+    // update the solution with the best gain
+    if(dBestGain > 0)
     {
-        printf("Gap: %f", abs(dSolutionValue - dGreedySolVal)/dSolutionValue);
+        bHasBetter = true;
+        vbiqSol.at(iBestIndex) = (vbiqSol.at(iBestIndex) == 1) ? 0: 1;
+    }
+    else
+    {
+        bHasBetter = false;
+    }
 
+
+    // while we can still find a gain
+    while (bHasBetter)
+    {
+        iPrevBest = iBestIndex;
+        iBestIndex = -1;
+        dBestGain = -MAXFLOAT;
+        // update gains
+        for(int k = 0; k < nVar_; ++k)
+        {
+            if(k == iPrevBest)
+            {
+                vGain.at(k) = 0;
+            }
+            else
+            {
+                vGain.at(k) -= 8*(2*vbiqSol.at(k) - 1)*(2*vbiqSol.at(iPrevBest) - 1)*Q_[k + iPrevBest*N_];
+
+            }
+            
+            
+            if(vGain.at(k) > dBestGain)
+            {
+                dBestGain = vGain.at(k);
+                iBestIndex = k;
+            }
+        }
+
+        if(dBestGain > 0)
+        {
+            bHasBetter = true;
+            vbiqSol.at(iBestIndex) = (vbiqSol.at(iBestIndex) == 1) ? 0: 1;
+            //printf("iBestIndex: %d   Best gain: %f   EndSol - BegSol: %f\n",iBestIndex, dBestGain, dEndVal - dBegVal);
+        }
+        else
+        {
+            bHasBetter = false;
+            //printf("Local Min\n");
+        }
+          
+    }
+
+    // compute the starting sol value for comparison
+    dEndVal = EvalSolution(vbiqSol);
+    if(UpdateSol(dEndVal, vbiqSol))
+    {
+        printf("1-Opt found new best: %f\n",dEndVal);
     }
 }
-    
 

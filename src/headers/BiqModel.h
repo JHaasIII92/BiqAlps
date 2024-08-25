@@ -168,11 +168,12 @@ public:
 
     double GWheuristic(int nPlanes,  std::vector<BiqVarStatus> vbiqVarStatus);
     
+    void OneOptLocalSearch(std::vector<int>& vbiqSol);
+
     int GetOffset(std::vector<BiqVarStatus> vbiqVarStatus);
     
     //double primalHeuristicKC();
     void KCheuristic(std::vector<BiqVarStatus> vbiqVarStatus);
-    
     
     void NieveUpdateHeuristic(std::vector<BiqVarStatus> vbiqVarStatus);
 
