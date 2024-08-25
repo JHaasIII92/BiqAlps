@@ -1,16 +1,18 @@
 Biq_bAddCuts 1 # [default: 1] 1: add constraints, 0: don't.
 Biq_bScale 1 # [default: 1] 1: add constraints, 0: don't.
+Biq_bOneOptSearch 1 # [default: 0] 1: 1: 1-Opt search called when a best solution is found 0: don't.
 
 Biq_bSolutionProvided 0 # [default: 0]
-Biq_dSolutionValue 0.0 # [default: 0.0]
+Biq_dSolutionValue -3702 # [default: 0.0]
 
 Biq_dGapCuts -5e-2 # [default: -5e-2]
 Biq_dInitAlpha 1e0 # [default: 1e-1]
 Biq_dInitTol 1e-1 # [default: 1e-1]
-Biq_dMinAlpha 5e-5 # [default: 5e-5]
+Biq_dMinAlpha 1e-4 # [default: 5e-5]
 Biq_dMinTol 1e-2 # [default: 1e-2]
 Biq_dScaleAlpha 0.5 # [default: 0.5]
 Biq_dScaleTol 0.95 # [default: 0.95]
+
 
 Biq_ProblemType 0 # 0: Max Cut 1: K Cluster, 2: Generic [default: 0]
 Biq_nCuts 2000 # [default: 500]
@@ -24,7 +26,7 @@ Biq_nMinCuts 50 # [default: 50]
 Biq_MaxNineqAdded 10000 # [default: 10000]
 Biq_branchingStrategy 0 # [default: 0] 0: MOST_FRACTIONAL, 1: LEAST_FRACTIONAL, 2: CLOSEST_TO_ONE
 Biq_bAddProductConstraints 1 # [default: 1] 1: add constraints, 0: don't.
-
+Biq_nGreedyRootRuns  10 # [default: 1] Number of times to generate a greedy solution on a root node
 Alps_instance /lstr/sahara/biqcrunch/TestData/MaxCut/bc/bqp250-8.sparse.bc
 
 Alps_processNum 128

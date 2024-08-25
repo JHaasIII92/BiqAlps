@@ -91,15 +91,43 @@ public:
 
 };
 
+class GreedyGains
+{
+public: 
+    int index_;
+    double gainZero_;
+    double gainOne_;
 
+    GreedyGains(int index,double gainZero,double gainOne)
+    :index_(index),
+    gainZero_(gainZero),
+    gainOne_(gainOne)
+    {}
+
+    GreedyGains()
+        : index_(0),
+          gainZero_(0.0),
+          gainOne_(0.0)
+    {
+    }
+
+    bool operator<(const GreedyGains& other) const {
+        return std::max(gainZero_, gainOne_) < std::max(other.gainZero_, other.gainOne_);
+    }
+
+    int minBestFix();
+    int maxBestFix();
+    int BestFix(bool);
+};
 
 
 
 using Sparse = std::vector<BiqSparseTriple>;
 using BiqTriTuple = std::tuple<int,int,int,int>;
 using TriCuts = std::vector<BiqTriInequality>;
-
-
+using GreedyGainsHeap = std::priority_queue<GreedyGains>;
+using GreedyGainsQueue = std::deque<GreedyGains>;
+using GreedyGainsMap = std::map<int, GreedyGains>;
 /*
 // unordered_map test does not seem like it is worth using
 struct BiqTriTupleHash {

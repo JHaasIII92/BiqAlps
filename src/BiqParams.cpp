@@ -20,6 +20,10 @@ BiqParams::createKeywordList() {
 			      AlpsParameter(AlpsBoolPar, bScale)));
     keys_.push_back(make_pair(std::string("Biq_bSolutionProvided"),
                   AlpsParameter(AlpsBoolPar, bSolutionProvided)));
+    keys_.push_back(make_pair(std::string("Biq_bOneOptSearch"),
+                  AlpsParameter(AlpsBoolPar, bOneOptSearch)));
+    keys_.push_back(make_pair(std::string("Biq_bRunWide"),
+                  AlpsParameter(AlpsBoolPar, bRunWide)));                 
     //-------------------------------------------------------------------------
     // IntPar
     keys_.push_back(make_pair(std::string("Biq_nCuts"),
@@ -44,6 +48,8 @@ BiqParams::createKeywordList() {
 			      AlpsParameter(AlpsIntPar, branchingStrategy)));
     keys_.push_back(make_pair(std::string("Biq_ProblemType"),
                   AlpsParameter(AlpsIntPar, ProblemType)));
+    keys_.push_back(make_pair(std::string("Biq_nGreedyRootRuns"),
+                  AlpsParameter(AlpsIntPar, nGreedyRootRuns)));
     //-------------------------------------------------------------------------
     // DoublePar
     keys_.push_back(make_pair(std::string("Biq_dInitAlpha"),
@@ -81,6 +87,8 @@ BiqParams::setDefaultEntries() {
     setEntry(bAddCuts, true);
     setEntry(bScale, true);
     setEntry(bSolutionProvided, false);
+    setEntry(bOneOptSearch, false);
+    setEntry(bRunWide, false);
 
     //-------------------------------------------------------------------------
     // IntPar
@@ -95,7 +103,7 @@ BiqParams::setDefaultEntries() {
     setEntry(nPrimalRuns, 1);
     setEntry(branchingStrategy, MOST_FRACTIONAL);
     setEntry(ProblemType, BIQ_MAX_CUT);
-    
+    setEntry(nGreedyRootRuns, 1);
     //-------------------------------------------------------------------------
     // DoublePar
     setEntry(dInitAlpha, 1e-1);

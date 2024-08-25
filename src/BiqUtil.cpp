@@ -6,11 +6,50 @@
 #include <array>
 #include <math.h>
 
-
+// use for sorting the heap on the triangle cuts
 bool operator<(BiqTriInequality const &l, BiqTriInequality const &r)
 {
     return l.value_ < r.value_;
 }
+
+
+
+
+int GreedyGains::minBestFix()
+{
+    // assume we are fixing to zero
+    int iRet = 0;
+    // if gain one is "better" then zero we fix to one
+    if(gainOne_ < gainZero_) iRet = 1;
+
+    return iRet;
+}
+
+int GreedyGains::maxBestFix()
+{
+    // assume we are fixing to zero
+    int iRet = 0;
+    // if gain one is better then zero we fix to one
+    if(gainOne_ > gainZero_) iRet = 1;
+
+    return iRet; 
+}
+
+int GreedyGains::BestFix(bool bIsMax)
+{
+    // wrap the other min max best fix methods
+    int iRet;
+    if(bIsMax)
+    {
+        iRet = maxBestFix();
+    }
+    else
+    {
+        iRet = minBestFix();
+    }
+    return iRet; 
+}
+
 
 int I(BiqTriTuple btt) 
 {
